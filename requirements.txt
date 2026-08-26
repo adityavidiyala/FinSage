@@ -1,0 +1,37 @@
+# Document parsing
+docling
+langchain-docling
+
+# Core LangChain
+langchain
+langchain-core
+langchain-community
+langchain-classic
+
+# Embeddings & reranking
+transformers
+sentence-transformers
+langchain-huggingface
+
+# LLM
+langchain-google-genai
+langchain-groq
+
+# Vector store
+langchain-qdrant
+qdrant-client
+
+# Hybrid retrieval
+rank_bm25
+
+# Evaluation
+ragas
+datasets
+langchain-google-vertexai
+
+# Observability (new — for LangSmith tracing)
+langsmith
+
+# Utilities
+python-dotenv
+pandas
