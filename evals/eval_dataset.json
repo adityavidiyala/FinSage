@@ -1,0 +1,160 @@
+[
+    {
+        "question": "What were the net sales, operating income, and operating income as a percentage of net sales for the Walmart International segment for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Net sales: $35,110M (2026) vs $29,754M (2025). Operating income: $1,602M (2026) vs $1,293M (2025). Operating income as a percentage of net sales: 4.6% (2026) vs 4.3% (2025)."
+    },
+    {
+        "question": "What were Walmart's outstanding payment obligations to financial institutions under its supplier financing programs as of April 30, 2026, January 31, 2026, and April 30, 2025?",
+        "ground_truth": "$5.9 billion as of April 30, 2026; $6.0 billion as of January 31, 2026; $5.6 billion as of April 30, 2025."
+    },
+    {
+        "question": "In the Driver Platform Matters settlement with the FTC, what was the total judgment amount, how much was suspended, and how much did Walmart accrue?",
+        "ground_truth": "$100 million total judgment; approximately $63 million suspended; approximately $37 million accrued, as of January 31, 2026."
+    },
+    {
+        "question": "What was Walmart's total revenue and consolidated net income attributable to Walmart for the three months ended April 30, 2026, compared to the same period in 2025?",
+        "ground_truth": "Total revenues were $177,751 million in 2026 vs $165,609 million in 2025. Consolidated net income attributable to Walmart was $5,330 million in 2026 vs $4,487 million in 2025."
+    },
+    {
+        "question": "What was Walmart's diluted net income per common share for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Diluted net income per common share attributable to Walmart was $0.67 in 2026 and $0.56 in 2025."
+    },
+    {
+        "question": "What were Walmart's total assets as of April 30, 2026, January 31, 2026, and April 30, 2025?",
+        "ground_truth": "Total assets were $289,607 million as of April 30, 2026, $284,668 million as of January 31, 2026, and $262,372 million as of April 30, 2025."
+    },
+    {
+        "question": "What was the value of Walmart's inventories as of April 30, 2026 compared to April 30, 2025?",
+        "ground_truth": "Inventories were $62,570 million as of April 30, 2026, compared to $57,467 million as of April 30, 2025."
+    },
+    {
+        "question": "How much long-term debt (including amounts due within one year) did Walmart have at carrying value as of April 30, 2026?",
+        "ground_truth": "Long-term debt, including amounts due within one year, had a carrying value of $40,783 million as of April 30, 2026."
+    },
+    {
+        "question": "How many shares did Walmart repurchase and how much did it pay in total for share repurchases during the three months ended April 30, 2026, compared to 2025?",
+        "ground_truth": "Walmart repurchased 16.6 million shares for a total of $2,080 million in the three months ended April 30, 2026, compared to 50.4 million shares for $4,555 million in the same period of 2025. Average price paid per share was $125.51 in 2026 vs $90.35 in 2025."
+    },
+    {
+        "question": "What is the size of Walmart's share repurchase program approved in February 2026, and how much authorization remained as of April 30, 2026?",
+        "ground_truth": "In February 2026, Walmart approved a new $30 billion share repurchase program, effective February 23, 2026. As of April 30, 2026, authorization for $28.2 billion of share repurchases remained under the current program."
+    },
+    {
+        "question": "What were the net sales and operating income for the Sam's Club U.S. segment for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Sam's Club U.S. net sales were $23,405 million in 2026 vs $22,064 million in 2025. Operating income was $674 million in 2026 vs $666 million in 2025."
+    },
+    {
+        "question": "What was Corporate and support's operating loss for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Corporate and support had an operating loss of $680 million in 2026 vs $520 million in 2025."
+    },
+    {
+        "question": "What three operating segments does Walmart report, and how does the company define the Walmart International segment?",
+        "ground_truth": "Walmart reports three operating segments: Walmart U.S., Walmart International, and Sam's Club U.S. The Walmart International segment consists of the Company's operations outside of the U.S., as well as eCommerce, which includes omnichannel initiatives."
+    },
+    {
+        "question": "How much of Walmart International's total net sales related to eCommerce for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Approximately $9.7 billion of Walmart International's total net sales related to eCommerce for the three months ended April 30, 2026, and approximately $7.7 billion for the same period in 2025."
+    },
+    {
+        "question": "What was Walmart's total marketing and advertising expenditure for the three months ended April 30, 2026?",
+        "ground_truth": "This information is not disclosed in the filing. The 10-Q does not break out marketing or advertising expenditure as a separate line item or note."
+    },
+    {
+        "question": "What was Walmart's total revenue and consolidated net income attributable to Walmart for the three months ended April 30, 2026, compared to the same period in 2025?",
+        "ground_truth": "Total revenues were $177,751 million in 2026 vs $165,609 million in 2025. Consolidated net income attributable to Walmart was $5,330 million in 2026 vs $4,487 million in 2025."
+    },
+    {
+        "question": "What was Walmart's diluted net income per common share for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Diluted net income per common share attributable to Walmart was $0.67 in 2026 and $0.56 in 2025."
+    },
+    {
+        "question": "What were Walmart's total assets as of April 30, 2026, January 31, 2026, and April 30, 2025?",
+        "ground_truth": "Total assets were $289,607 million as of April 30, 2026, $284,668 million as of January 31, 2026, and $262,372 million as of April 30, 2025."
+    },
+    {
+        "question": "What was the value of Walmart's inventories as of April 30, 2026 compared to April 30, 2025?",
+        "ground_truth": "Inventories were $62,570 million as of April 30, 2026, compared to $57,467 million as of April 30, 2025."
+    },
+    {
+        "question": "How much long-term debt (including amounts due within one year) did Walmart have at carrying value as of April 30, 2026?",
+        "ground_truth": "Long-term debt, including amounts due within one year, had a carrying value of $40,783 million as of April 30, 2026."
+    },
+    {
+        "question": "How many shares did Walmart repurchase and how much did it pay in total for share repurchases during the three months ended April 30, 2026, compared to 2025?",
+        "ground_truth": "Walmart repurchased 16.6 million shares for a total of $2,080 million in the three months ended April 30, 2026, compared to 50.4 million shares for $4,555 million in the same period of 2025. Average price paid per share was $125.51 in 2026 vs $90.35 in 2025."
+    },
+    {
+        "question": "What is the size of Walmart's share repurchase program approved in February 2026, and how much authorization remained as of April 30, 2026?",
+        "ground_truth": "In February 2026, Walmart approved a new $30 billion share repurchase program, effective February 23, 2026. As of April 30, 2026, authorization for $28.2 billion of share repurchases remained under the current program."
+    },
+    {
+        "question": "What were the net sales and operating income for the Sam's Club U.S. segment for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Sam's Club U.S. net sales were $23,405 million in 2026 vs $22,064 million in 2025. Operating income was $674 million in 2026 vs $666 million in 2025."
+    },
+    {
+        "question": "What was Corporate and support's operating loss for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Corporate and support had an operating loss of $680 million in 2026 vs $520 million in 2025."
+    },
+    {
+        "question": "What three operating segments does Walmart report, and how does the company define the Walmart International segment?",
+        "ground_truth": "Walmart reports three operating segments: Walmart U.S., Walmart International, and Sam's Club U.S. The Walmart International segment consists of the Company's operations outside of the U.S., as well as eCommerce, which includes omnichannel initiatives."
+    },
+    {
+        "question": "How much of Walmart International's total net sales related to eCommerce for the three months ended April 30, 2026 and 2025?",
+        "ground_truth": "Approximately $9.7 billion of Walmart International's total net sales related to eCommerce for the three months ended April 30, 2026, and approximately $7.7 billion for the same period in 2025."
+    },
+    {
+        "question": "What was Walmart's total marketing and advertising expenditure for the three months ended April 30, 2026?",
+        "ground_truth": "This information is not disclosed in the filing. The 10-Q does not break out marketing or advertising expenditure as a separate line item or note."
+    },
+    {"question": "What was Walmart's other comprehensive income (loss) attributable to Walmart for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Other comprehensive income (loss) attributable to Walmart was $(835) million in 2026 vs $309 million in 2025."},
+    {"question": "What was total comprehensive income attributable to Walmart for the three months ended April 30, 2026 and 2025?",
+     "ground_truth": "Comprehensive income attributable to Walmart was $4,495 million in 2026 vs $4,796 million in 2025."},
+    {"question": "What was Walmart's net cash provided by operating activities for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Net cash provided by operating activities was $4,738 million in 2026 vs $5,411 million in 2025."},
+    {"question": "How much did Walmart spend on payments for property and equipment (capex) in the cash flow statement for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Payments for property and equipment were $6,684 million in 2026 vs $4,986 million in 2025."},
+    {"question": "What was Walmart's net cash used in investing activities for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Net cash used in investing activities was $(6,737) million in 2026 vs $(5,093) million in 2025."},
+    {"question": "How much did Walmart pay in dividends (cash flow statement) during the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Dividends paid were $1,972 million in 2026 vs $1,880 million in 2025."},
+    {"question": "What was the ending cash, cash equivalents and restricted cash balance for Walmart as of April 30, 2026 vs 2025?",
+     "ground_truth": "Cash, cash equivalents and restricted cash at end of period was $11,319 million in 2026 vs $9,932 million in 2025."},
+    {"question": "List the five long-term debt issuances Walmart made during the three months ended April 30, 2026, with principal amounts and maturity dates.",
+     "ground_truth": "Five issuances on April 30, 2026: $350M floating rate due April 30, 2029; $650M at 4.000% due April 30, 2029; $1,000M at 4.150% due April 30, 2031; $1,250M at 4.450% due April 30, 2033; $1,000M at 4.750% due April 30, 2036. Total principal: $4,230 million."},
+    {"question": "What long-term debt matured during the three months ended April 30, 2026, and what were the repayment amounts?",
+     "ground_truth": "A €650 million note at 2.550% matured April 8, 2026 (repaid $754 million), and a $750 million note at 4.000% matured April 15, 2026 (repaid $750 million). Total repayment: $1,504 million."},
+    {"question": "Are Walmart's newly issued senior notes (issued in the three months ended April 30, 2026) convertible, and do they contain financial covenants?",
+     "ground_truth": "No, the notes are senior, unsecured, not convertible or exchangeable, and contain no financial covenants; they do not restrict dividends or share repurchases."},
+    {"question": "What is the outcome of the Florida Health Sciences Center opioid litigation case as of this filing?",
+     "ground_truth": "A jury trial ended in a mistrial on December 8, 2025. On May 26, 2026, the Court granted a directed verdict and entered judgment in favor of Walmart and other defendants."},
+    {"question": "What is the Asda Equal Value Claims matter, and roughly how many claimants are involved?",
+     "ground_truth": "Equal-value pay claims brought by approximately 73,000 current and former Asda store employees in the UK, pending before an Employment Tribunal and the High Court, ongoing since 2008, currently in a third phase."},
+    {"question": "What did the DOJ allege in its Opioid Civil Litigation complaint against Walmart, and what is the status of the case?",
+     "ground_truth": "The DOJ's December 2020 complaint alleged Walmart unlawfully dispensed and distributed controlled substances in violation of the Controlled Substances Act, seeking civil penalties and injunctive relief. The Court partially dismissed claims in March 2024; some claims remain pending, with trial scheduled for November 2027."},
+    {"question": "What was Walmart U.S.'s total depreciation and amortization and capital expenditures for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Walmart U.S. depreciation and amortization was $2,509 million in 2026 vs $2,240 million in 2025. Capital expenditures were $5,011 million in 2026 vs $3,772 million in 2025."},
+    {"question": "What were total assets by segment as of April 30, 2026 for Walmart U.S., Walmart International, and Sam's Club U.S.?",
+     "ground_truth": "Walmart U.S.: $170,738 million. Walmart International: $86,016 million. Sam's Club U.S.: $18,111 million. Corporate and support: $14,742 million."},
+    {"question": "What was the breakdown of Walmart U.S. net sales by merchandise category for the three months ended April 30, 2026?",
+     "ground_truth": "Grocery: $70,696 million; General merchandise: $26,420 million; Health and wellness: $16,355 million; Other categories: $3,698 million. Total: $117,169 million."},
+    {"question": "How much of Walmart U.S.'s net sales related to eCommerce for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Approximately $27.1 billion in 2026 vs approximately $21.4 billion in 2025."},
+    {"question": "What was the breakdown of Walmart International net sales by market for the three months ended April 30, 2026?",
+     "ground_truth": "Mexico and Central America: $13,847 million; China: $8,454 million; Canada: $5,727 million; Other: $7,082 million. Total: $35,110 million."},
+    {"question": "What was the breakdown of Sam's Club U.S. net sales by merchandise category for the three months ended April 30, 2026?",
+     "ground_truth": "Grocery: $16,102 million; Fuel and other: $3,443 million; General merchandise: $2,649 million; Health and wellness: $1,211 million. Total: $23,405 million."},
+    {"question": "How much of Sam's Club U.S.'s net sales related to eCommerce for the three months ended April 30, 2026 vs 2025?",
+     "ground_truth": "Approximately $4.1 billion in 2026 vs approximately $3.3 billion in 2025."},
+    {"question": "What tariff/trade-related risks does Walmart flag as affecting its business in the MD&A 'Recent Developments' section?",
+     "ground_truth": "Tariffs and trade restrictions including potential refunds, inflationary trends, fluctuations in global currencies, swings in macroeconomic conditions affecting consumer confidence, changes in employment trends, volatility in fuel prices, and supply chain pressures."},
+    {"question": "According to the MD&A, what share of Walmart's U.S. imports come from China, Vietnam, Mexico, India, and Canada, and what fraction of total U.S. sales is imported?",
+     "ground_truth": "Less than one third of what Walmart sells in the U.S. is imported, with most imports coming from China, Vietnam, Mexico, India, and Canada."},
+    {"question": "What fiscal years does this Form 10-Q's MD&A discussion cover?",
+     "ground_truth": "Fiscal year ending January 31, 2027 (fiscal 2027) and fiscal year ended January 31, 2026 (fiscal 2026)."},
+    {"question": "What was Walmart's total headcount or number of employees as of April 30, 2026?",
+     "ground_truth": "This information is not disclosed in the filing. Employee headcount is not reported in this 10-Q."},
+    {"question": "What credit rating agencies have rated Walmart's debt, and what were the specific ratings as of April 30, 2026?",
+     "ground_truth": "This information is not disclosed in the filing. No credit rating agency names or specific ratings are included in this 10-Q."}
+]
