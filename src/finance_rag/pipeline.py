@@ -1,7 +1,8 @@
 """
-Top-level orchestration. Two entry points:
-  build_index()  — run once: parse -> chunk -> build docs -> embed+upsert -> cache docs for BM25.
-  answer_query() — run per question: hybrid retrieve -> rerank -> dedup -> generate with citations.
+Top-level orchestration. Three entry points:
+  build_index()      — run once: parse -> chunk -> build docs -> embed+upsert -> cache docs for BM25.
+  build_retriever()  — run once per process: rebuilds BM25 + connects Qdrant + loads reranker.
+  answer_query()      — run per question, given an already-built retriever.
 """
 
 import os
@@ -23,31 +24,36 @@ def build_index() -> None:
     semantic_chunks = build_semantic_chunks(result.document)
     langchain_docs = build_langchain_documents(semantic_chunks)
 
-    get_vectorstore(langchain_docs)          # creates Qdrant collection + upserts if not already present
-    save_documents(langchain_docs, DOCS_CACHE_PATH)  # so BM25 can be rebuilt later without re-ingesting
+    get_vectorstore(langchain_docs)
+    save_documents(langchain_docs, DOCS_CACHE_PATH)
 
     print(f"Index built: {len(langchain_docs)} documents. BM25 cache saved to {DOCS_CACHE_PATH}")
 
 
-def _get_retriever():
+def build_retriever():
+    """
+    Expensive setup, meant to be called ONCE per process — not once per question.
+    Rebuilds BM25 from the cached documents, connects to Qdrant, loads the reranker model.
+    Reuse the returned retriever across as many answer_query() calls as you need.
+    """
     if not os.path.exists(DOCS_CACHE_PATH):
         raise RuntimeError(
             f"No document cache found at {DOCS_CACHE_PATH}. Run build_index() first (scripts/ingest.py)."
         )
 
     langchain_docs = load_documents(DOCS_CACHE_PATH)
-    vectorstore = get_vectorstore()  # connects to existing collection, no re-embedding
+    vectorstore = get_vectorstore()
 
     hybrid_retriever = build_hybrid_retriever(langchain_docs, vectorstore)
     return build_reranked_retriever(hybrid_retriever)
 
 
-def answer_query(question: str) -> dict:
+def answer_query(question: str, retriever) -> dict:
     """
-    Runs the full query-time pipeline: hybrid retrieval -> rerank -> dedup -> generate.
+    Cheap, per-question part: retrieve -> dedup -> generate.
+    `retriever` must come from build_retriever() — build it once, reuse it across calls.
     Returns {"answer": str, "citations": list[dict]}.
     """
-    retriever = _get_retriever()
     retrieved_docs = retriever.invoke(question)
     retrieved_docs = dedup_chunks(retrieved_docs)
 
