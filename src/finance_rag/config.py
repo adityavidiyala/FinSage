@@ -15,7 +15,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # name the cache file after the source PDF, so different filings get separate caches
 _pdf_filename = os.path.basename(PDF_PATH)
 CACHE_PATH = os.path.join(CACHE_DIR, os.path.splitext(_pdf_filename)[0] + ".json")
-
+DOCS_CACHE_PATH = os.path.join(CACHE_DIR, os.path.splitext(_pdf_filename)[0] + "_docs.json")
 # ---------------------------------------------------------------------------
 # Chunking
 # ---------------------------------------------------------------------------

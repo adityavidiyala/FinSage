@@ -3,9 +3,8 @@ Converts semantic chunk dicts (from chunker.py) into LangChain Document objects,
 ready for embedding. Table chunks get an LLM summary + deterministic text rendering
 merged into the page content; text chunks pass through unchanged.
 """
-
+import json
 from langchain_core.documents import Document
-
 from finance_rag.ingestion.tables import summarize_table, markdown_table_to_text
 
 
@@ -45,3 +44,18 @@ TABLE CONTENT:
         langchain_docs.append(doc)
 
     return langchain_docs
+
+def save_documents(docs: list[Document], path: str) -> None:
+    """Persist LangChain Documents to disk so BM25 can be rebuilt without re-running ingestion."""
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(
+            [{"page_content": d.page_content, "metadata": d.metadata} for d in docs],
+            f,
+        )
+
+
+def load_documents(path: str) -> list[Document]:
+    """Load Documents previously saved by save_documents()."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return [Document(page_content=item["page_content"], metadata=item["metadata"]) for item in data]
