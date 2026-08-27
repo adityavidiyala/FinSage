@@ -16,7 +16,7 @@ from finance_rag.retrieval.hybrid import build_hybrid_retriever
 from finance_rag.retrieval.rerank import build_reranked_retriever
 from finance_rag.retrieval.dedup import dedup_chunks
 from finance_rag.generation.answer import generate_answer
-
+from finance_rag.observability.tracing import track_stage
 
 def build_index() -> None:
     """One-time (or re-run on new document) ingestion: parse, chunk, embed, upsert to Qdrant."""
@@ -49,12 +49,14 @@ def build_retriever():
 
 
 def answer_query(question: str, retriever) -> dict:
-    """
-    Cheap, per-question part: retrieve -> dedup -> generate.
-    `retriever` must come from build_retriever() — build it once, reuse it across calls.
-    Returns {"answer": str, "citations": list[dict]}.
-    """
-    retrieved_docs = retriever.invoke(question)
-    retrieved_docs = dedup_chunks(retrieved_docs)
+    with track_stage(question, "retrieval"):
+        retrieved_docs = retriever.invoke(question)
 
-    return generate_answer(question, retrieved_docs)
+    with track_stage(question, "dedup"):
+        retrieved_docs = dedup_chunks(retrieved_docs)
+
+    with track_stage(question, "generation") as extra:
+        result = generate_answer(question, retrieved_docs)
+        extra.update(result.get("usage", {}))
+
+    return result

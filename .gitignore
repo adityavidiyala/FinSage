@@ -237,3 +237,5 @@ evals/results/*.json
 # OS/editor
 .DS_Store
 .vscode/settings.json
+
+logs/

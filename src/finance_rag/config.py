@@ -53,3 +53,7 @@ COLLECTION_NAME = "finance_rag"
 # ---------------------------------------------------------------------------
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false")
 LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "finsage-rag")
+
+
+LOG_DIR = "logs"
+LATENCY_LOG_PATH = os.path.join(LOG_DIR, "latency.csv")

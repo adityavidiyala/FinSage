@@ -84,10 +84,18 @@ def generate_answer(question: str, retrieved_docs: list[Document]) -> dict:
                     if isinstance(item, dict) and item.get("type") == "text"
                 )
 
+            usage = {}
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage = {
+                    "input_tokens": response.usage_metadata.get("input_tokens"),
+                    "output_tokens": response.usage_metadata.get("output_tokens"),
+                    "total_tokens": response.usage_metadata.get("total_tokens"),
+                }
+
             answer_text = content.strip()
             citations = _extract_citations(answer_text, retrieved_docs)
 
-            return {"answer": answer_text, "citations": citations}
+            return {"answer": answer_text, "citations": citations, "usage": usage}
 
         except Exception as e:
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
