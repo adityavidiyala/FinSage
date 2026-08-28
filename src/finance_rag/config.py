@@ -38,6 +38,7 @@ DEDUP_SIMILARITY_THRESHOLD = 0.85
 # LLM
 # ---------------------------------------------------------------------------
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY_FALLBACK = os.environ.get("GOOGLE_API_KEY_FALLBACK")
 LLM_MODEL = "gemini-3.1-flash-lite"
 LLM_TEMPERATURE = 0
 
@@ -62,3 +63,7 @@ LATENCY_LOG_PATH = os.path.join(LOG_DIR, "latency.csv")
 SEMANTIC_CACHE_PATH = os.path.join(CACHE_DIR, "semantic_cache.json")
 SEMANTIC_CACHE_THRESHOLD = 0.92
 SEMANTIC_CACHE_ENABLED = True
+
+MAX_HISTORY_TURNS = 5
+
+GUARDRAILS_ENABLED = True

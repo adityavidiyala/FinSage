@@ -37,6 +37,7 @@ def find_cached_answer(question: str, cache_entries: list[dict]) -> dict | None:
         if score > best_score:
             best_score = score
             best_entry = entry
+    print(f"[cache debug] best similarity = {best_score:.4f} (threshold = {SEMANTIC_CACHE_THRESHOLD})")  # temporary
 
     if best_score >= SEMANTIC_CACHE_THRESHOLD:
         return {**best_entry, "cache_similarity": best_score}

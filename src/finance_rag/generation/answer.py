@@ -15,7 +15,7 @@ from langchain_core.documents import Document
 from finance_rag.generation.llm import llm
 
 ANSWER_PROMPT = PromptTemplate.from_template("""
-You are answering a question about a company's financial filing (10-Q).
+You are answering a question about a company's financial document.
 Use ONLY the information in the numbered sources below. Do not use outside knowledge.
 If the sources do not contain the answer, say so explicitly rather than guessing.
 

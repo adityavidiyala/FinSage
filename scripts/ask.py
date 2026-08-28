@@ -1,8 +1,9 @@
 import sys
 import os
-from finance_rag.pipeline import build_retriever, answer_query
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from finance_rag.pipeline import build_retriever, answer_query
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
