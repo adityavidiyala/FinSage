@@ -6,7 +6,6 @@ Top-level orchestration. Three entry points:
 """
 
 import os
-
 from finance_rag.config import DOCS_CACHE_PATH
 from finance_rag.ingestion.parser import parse_document
 from finance_rag.ingestion.chunker import build_semantic_chunks
@@ -17,6 +16,8 @@ from finance_rag.retrieval.rerank import build_reranked_retriever
 from finance_rag.retrieval.dedup import dedup_chunks
 from finance_rag.generation.answer import generate_answer
 from finance_rag.observability.tracing import track_stage
+from finance_rag.caching.semantic_cache import load_cache, find_cached_answer, store_answer
+from finance_rag.config import SEMANTIC_CACHE_ENABLED
 
 def build_index() -> None:
     """One-time (or re-run on new document) ingestion: parse, chunk, embed, upsert to Qdrant."""
@@ -48,7 +49,19 @@ def build_retriever():
     return build_reranked_retriever(hybrid_retriever)
 
 
-def answer_query(question: str, retriever) -> dict:
+def answer_query(question: str, retriever, use_cache: bool = SEMANTIC_CACHE_ENABLED) -> dict:
+    if use_cache:
+        cache_entries = load_cache()
+        cached = find_cached_answer(question, cache_entries)
+        if cached is not None:
+            with track_stage(question, "cache_hit") as extra:
+                extra["cache_similarity"] = cached["cache_similarity"]
+            return {
+                "answer": cached["answer"],
+                "citations": cached["citations"],
+                "from_cache": True,
+                "cache_similarity": cached["cache_similarity"],
+            }
     with track_stage(question, "retrieval"):
         retrieved_docs = retriever.invoke(question)
 
@@ -59,4 +72,8 @@ def answer_query(question: str, retriever) -> dict:
         result = generate_answer(question, retrieved_docs)
         extra.update(result.get("usage", {}))
 
+    if use_cache:
+        store_answer(question, result["answer"], result["citations"], cache_entries)
+
+    result["from_cache"] = False
     return result

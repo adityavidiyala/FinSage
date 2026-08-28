@@ -57,3 +57,8 @@ LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "finsage-rag")
 
 LOG_DIR = "logs"
 LATENCY_LOG_PATH = os.path.join(LOG_DIR, "latency.csv")
+
+# Semantic cache
+SEMANTIC_CACHE_PATH = os.path.join(CACHE_DIR, "semantic_cache.json")
+SEMANTIC_CACHE_THRESHOLD = 0.92
+SEMANTIC_CACHE_ENABLED = True
