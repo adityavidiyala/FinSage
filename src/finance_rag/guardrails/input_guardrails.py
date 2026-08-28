@@ -31,8 +31,15 @@ def classify_input(message: str) -> dict:
     prompt = CLASSIFY_PROMPT.format(message=message)
     response = llm.invoke(prompt)
 
+    content = response.content
+    if isinstance(content, list):
+        content = "".join(
+            part if isinstance(part, str) else part.get("text", "")
+            for part in content
+        )
+
     try:
-        result = json.loads(response.content.strip())
+        result = json.loads(content.strip())
         return {
             "on_topic": bool(result.get("on_topic", True)),
             "jailbreak_attempt": bool(result.get("jailbreak_attempt", False)),
