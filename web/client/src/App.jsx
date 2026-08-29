@@ -98,8 +98,8 @@ function ThemeToggle({ theme, onToggle }) {
           <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.2 3.2l1.06 1.06M10.74 10.74l1.06 1.06M3.2 11.8l1.06-1.06M10.74 4.26l1.06-1.06M7.5 5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
       ) : (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M12.5 9A6 6 0 015 1.5a6 6 0 100 11A6 6 0 0012.5 9z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       )}
     </button>
@@ -348,6 +348,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const [loading, setLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [sampleIdx, setSampleIdx] = useState(0);
   
   const bottomRef = useRef(null);
@@ -375,6 +376,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   useEffect(() => {
     function handler(e) {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (!e.target.closest('.chat-menu-container')) setOpenMenuId(null);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -444,22 +446,56 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           {chats.map((c) => {
             const active = activeChatId === c.id;
             return (
-              <button
-                key={c.id}
-                onClick={() => setActiveChatId(c.id)}
-                className="w-full text-left px-3 py-2.5 transition-colors mx-1 rounded-lg"
-                style={{
-                  background: active ? surface : "transparent",
-                  color: active ? textMain : textMuted,
-                  width: "calc(100% - 8px)",
-                }}
-              >
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-xs font-semibold truncate max-w-[120px]" style={{ color: active ? textMain : textMuted }}>{c.title}</span>
-                  <span className="text-[10px] font-mono" style={{ color: textMuted }}>{c.time}</span>
-                </div>
-                <p className="text-[11px] truncate" style={{ color: textMuted }}>{c.preview}</p>
-              </button>
+              <div key={c.id} className="relative chat-menu-container group mx-1 mb-0.5" style={{ width: "calc(100% - 8px)" }}>
+                <button
+                  onClick={() => setActiveChatId(c.id)}
+                  className="w-full text-left px-3 py-2.5 transition-colors rounded-lg flex items-center justify-between"
+                  style={{
+                    background: active ? surface : "transparent",
+                    color: active ? textMain : textMuted,
+                  }}
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>{c.title}</span>
+                      <span className="text-[10px] font-mono shrink-0 ml-2" style={{ color: textMuted }}>{c.time}</span>
+                    </div>
+                    <p className="text-[11px] truncate" style={{ color: textMuted }}>{c.preview}</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuId(openMenuId === c.id ? null : c.id);
+                  }}
+                  className={`absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${openMenuId === c.id ? 'opacity-100' : ''}`}
+                  style={{ color: textMuted, background: active ? surface : bg }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+
+                {openMenuId === c.id && (
+                  <div className="absolute left-1/2 top-8 w-40 rounded-lg shadow-lg border py-1.5 z-50 text-xs" style={{ background: surface, borderColor: border }}>
+                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                      Pin
+                    </button>
+                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      Rename
+                    </button>
+                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: "#EF4444" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -500,9 +536,6 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-                <div className="font-mono text-[11px] px-2 py-1 rounded-md" style={{ background: surface, color: textMuted }}>
-                GPT-4o · RAG
-                </div>
                 {!showRightSidebar && (
                 <button 
                     onClick={() => setShowRightSidebar(true)}
@@ -523,8 +556,8 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           {activeChat.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <p className="text-3xl mb-1">{greeting.icon}</p>
-              <p className="font-display text-xl font-semibold mb-1" style={{ color: textMain }}>{greeting.label},</p>
-              <p className="text-sm mb-8" style={{ color: textMuted }}>Ask the filings. Every answer comes with a source.</p>
+              <p className="text-3xl font-medium mb-1 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
+              <p className="text-md mb-8 italic" style={{ color: textMuted, fontFamily: '"Times New Roman", Times, serif' }}>Ask the filings. Every answer comes with a source.</p>
               <div className="grid grid-cols-2 gap-2 max-w-md w-full">
                 {SUGGESTED.map((s) => (
                   <button
