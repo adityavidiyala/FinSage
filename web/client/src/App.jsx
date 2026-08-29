@@ -411,6 +411,11 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   }
 
   function newChat() {
+    // Prevent creating a new chat if the current active one is already empty
+    if (activeChat && activeChat.messages.length === 0) {
+      return; 
+    }
+
     const id = "c" + Date.now();
     setChats((prev) => [{ id, title: "New chat", preview: "Ask anything…", time: "now", docs: [], messages: [] }, ...prev]);
     setActiveChatId(id);
