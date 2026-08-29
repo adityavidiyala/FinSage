@@ -167,7 +167,7 @@ function LandingPage({ onStart, theme, onToggleTheme }) {
   );
 }
 
-function AuthPage({ onAuth, theme, onToggleTheme }) {
+function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
   const [tab, setTab] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -185,10 +185,21 @@ function AuthPage({ onAuth, theme, onToggleTheme }) {
 
   return (
     <div className="min-h-full flex flex-col items-center justify-center font-sans transition-colors duration-200" style={{ background: bg }}>
+      
+      <div className="absolute top-5 left-6">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: textMuted }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back
+        </button>
+      </div>
       <div className="absolute top-5 right-6">
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       </div>
-      <div className="w-full max-w-md rounded-2xl shadow-sm p-8 border" style={{ background: surface, borderColor: border }}>
+
+      <div className="w-full max-w-md rounded-2xl shadow-sm p-8 border relative z-10" style={{ background: surface, borderColor: border }}>
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -197,19 +208,6 @@ function AuthPage({ onAuth, theme, onToggleTheme }) {
             </svg>
           </div>
           <span className="font-display font-bold text-lg tracking-tight" style={{ color: textMain }}>FinSage</span>
-        </div>
-
-        <div className="flex rounded-lg p-1 mb-6" style={{ background: bg }}>
-          {["login", "signup"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className="flex-1 py-2 text-sm font-medium rounded-md transition-all capitalize"
-              style={tab === t ? { background: surface, color: textMain, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" } : { color: textMuted }}
-            >
-              {t === "login" ? "Sign in" : "Sign up"}
-            </button>
-          ))}
         </div>
 
         <div className="space-y-4">
@@ -255,9 +253,15 @@ function AuthPage({ onAuth, theme, onToggleTheme }) {
             {tab === "login" ? "Sign in" : "Create account"}
           </button>
         </div>
-        {tab === "login" && (
-          <p className="text-xs text-center mt-4" style={{ color: textMuted }}>
-            Don't have an account? <button onClick={() => setTab("signup")} className="underline" style={{ color: textMain }}>Sign up</button>
+        
+        {/* The single, correct toggle text at the bottom */}
+        {tab === "login" ? (
+          <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
+            Don't have an account? <button onClick={() => setTab("signup")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign up</button>
+          </p>
+        ) : (
+          <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
+            Already have an account? <button onClick={() => setTab("login")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign in</button>
           </p>
         )}
       </div>
@@ -355,7 +359,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const fileInputRef = useRef(null);
   const greeting = getGreeting();
 
-  const activeChat = chats.find((c) => c.id === activeChatId);
+  const activeChat = chats.find((c) => c.id === activeChatId) || { title: "New Chat", docs: [], messages: [] };
   const currentDocs = activeChat.docs ? DOCS.filter(d => activeChat.docs.includes(d.id)) : [];
 
   const bg = dark ? "#1C1B19" : "#F4F3EE";
@@ -777,7 +781,7 @@ export default function App() {
   return (
     <div className="h-full">
       {page === "landing" && <LandingPage onStart={() => setPage("auth")} theme={theme} onToggleTheme={toggle} />}
-      {page === "auth" && <AuthPage onAuth={() => setPage("app")} theme={theme} onToggleTheme={toggle} />}
+      {page === "auth" && <AuthPage onAuth={() => setPage("app")} onBack={() => setPage("landing")} theme={theme} onToggleTheme={toggle} />}
       {page === "app" && <MainApp onLogout={() => setPage("landing")} theme={theme} onToggleTheme={toggle} />}
     </div>
   );
