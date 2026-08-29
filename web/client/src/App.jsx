@@ -14,6 +14,7 @@ const INITIAL_CHATS = [
     title: "Apple Revenue Analysis",
     preview: "Total net sales of $391B…",
     time: "2h ago",
+    docs: ["d1"], // Included documents for this specific chat
     messages: [
       { id: "m1", role: "user", content: "What is Apple's revenue growth for FY2024?" },
       {
@@ -32,6 +33,7 @@ const INITIAL_CHATS = [
     title: "NVIDIA Supply Chain",
     preview: "TSMC CoWoS bottleneck…",
     time: "Yesterday",
+    docs: ["d2"],
     messages: [
       { id: "m3", role: "user", content: "How is NVIDIA managing its supply chain risks?" },
       {
@@ -50,6 +52,7 @@ const INITIAL_CHATS = [
     title: "MSFT Cloud Growth",
     preview: "Azure grew 33% YoY…",
     time: "2 days ago",
+    docs: ["d3"],
     messages: [],
   },
 ];
@@ -344,7 +347,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [sampleIdx, setSampleIdx] = useState(0);
   
   const bottomRef = useRef(null);
@@ -353,6 +356,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const greeting = getGreeting();
 
   const activeChat = chats.find((c) => c.id === activeChatId);
+  const currentDocs = activeChat.docs ? DOCS.filter(d => activeChat.docs.includes(d.id)) : [];
 
   const bg = dark ? "#1C1B19" : "#F4F3EE";
   const surface = dark ? "#2A2925" : "#FFFFFF";
@@ -407,12 +411,8 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
   function newChat() {
     const id = "c" + Date.now();
-    setChats((prev) => [{ id, title: "New chat", preview: "Ask anything…", time: "now", messages: [] }, ...prev]);
+    setChats((prev) => [{ id, title: "New chat", preview: "Ask anything…", time: "now", docs: [], messages: [] }, ...prev]);
     setActiveChatId(id);
-  }
-
-  function toggleDoc(id) {
-    setSelectedDocs((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
   }
 
   return (
@@ -490,16 +490,27 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ borderColor: border, background: surface }}>
+        <header className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ borderColor: border, background: bg }}>
           <div>
             <p className="font-semibold text-sm" style={{ color: textMain }}>{activeChat.title}</p>
-            <p className="text-xs" style={{ color: textMuted }}>{selectedDocs.length > 0 ? `${selectedDocs.length} docs selected` : "All documents"}</p>
+            <p className="text-xs" style={{ color: textMuted }}>{currentDocs.length > 0 ? `${currentDocs.length} docs included` : "All documents"}</p>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-            <div className="font-mono text-[11px] px-2 py-1 rounded-md" style={{ background: bg, color: textMuted }}>
+            <div className="font-mono text-[11px] px-2 py-1 rounded-md" style={{ background: surface, color: textMuted }}>
               GPT-4o · RAG
             </div>
+            <button 
+              onClick={() => setShowRightSidebar(!showRightSidebar)}
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:opacity-80 ml-2"
+              style={{ color: textMuted, background: surface, border: `1px solid ${border}` }}
+              title="Toggle Sidebar"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -539,9 +550,9 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           )}
         </div>
 
-        <div className="px-6 py-4 border-t shrink-0" style={{ borderColor: border, background: surface }}>
+        <div className="px-6 py-4 border-t shrink-0" style={{ borderColor: border, background: bg }}>
           <div className="max-w-2xl mx-auto">
-            <div className="flex flex-col border rounded-xl transition-colors" style={{ borderColor: border, background: bg }}>
+            <div className="flex flex-col border rounded-xl transition-colors" style={{ borderColor: border, background: surface }}>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -554,7 +565,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               <div className="flex items-center justify-between px-3 pb-2.5">
                 <div className="flex items-center gap-1">
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors" style={{ color: textMuted, background: surface }}>
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors" style={{ color: textMuted, background: bg }}>
                     Upload
                   </button>
                 </div>
@@ -574,33 +585,31 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
         </div>
       </div>
 
-      <aside className="w-56 flex flex-col border-l shrink-0" style={{ background: sidebarBg, borderColor: border }}>
-        <div className="px-4 py-4 border-b" style={{ borderColor: border }}>
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-xs" style={{ color: textMain }}>Document Library</p>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: surface, color: textMuted }}>{DOCS.length}</span>
+      {showRightSidebar && (
+        <aside className="w-56 flex flex-col border-l shrink-0" style={{ background: sidebarBg, borderColor: border }}>
+          <div className="px-4 py-4 border-b" style={{ borderColor: border }}>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-xs" style={{ color: textMain }}>Document Library</p>
+              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: surface, color: textMuted }}>{currentDocs.length}</span>
+            </div>
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2">
-          {DOCS.map((doc) => {
-            const selected = selectedDocs.includes(doc.id);
-            return (
-              <button
-                key={doc.id}
-                onClick={() => toggleDoc(doc.id)}
-                className="w-full text-left px-3 py-2.5 transition-colors border-l-2 mb-0.5"
-                style={{ borderLeftColor: selected ? accent : "transparent", background: selected ? surface : "transparent" }}
-              >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className={`text-[9px] font-mono px-1 py-0.5 rounded border ${typeColors[doc.type] || ""}`}>{doc.type}</span>
+          <div className="flex-1 overflow-y-auto py-2">
+            {currentDocs.length === 0 ? (
+              <p className="text-xs text-center mt-4" style={{ color: textMuted }}>No documents included.</p>
+            ) : (
+              currentDocs.map((doc) => (
+                <div key={doc.id} className="w-full text-left px-3 py-2.5 mb-0.5">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className={`text-[9px] font-mono px-1 py-0.5 rounded border ${typeColors[doc.type] || ""}`}>{doc.type}</span>
+                  </div>
+                  <p className="text-[11px] font-medium leading-tight truncate" style={{ color: textMain }}>{doc.name}</p>
+                  <p className="text-[10px] mt-0.5 font-mono" style={{ color: textMuted }}>{doc.size} · {doc.date}</p>
                 </div>
-                <p className="text-[11px] font-medium leading-tight truncate" style={{ color: selected ? textMain : textMuted }}>{doc.name}</p>
-                <p className="text-[10px] mt-0.5 font-mono" style={{ color: textMuted }}>{doc.size} · {doc.date}</p>
-              </button>
-            );
-          })}
-        </div>
-      </aside>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
