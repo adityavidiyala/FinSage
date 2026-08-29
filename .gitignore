@@ -239,3 +239,6 @@ evals/results/*.json
 .vscode/settings.json
 
 logs/
+
+# Node dependencies
+node_modules/
