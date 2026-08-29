@@ -74,12 +74,12 @@ const typeColors = {
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 5) return { label: "Night Owl", icon: "🦉" };
-  if (h < 9) return { label: "Early Bird", icon: "🌅" };
-  if (h < 12) return { label: "Good Morning", icon: "☀️" };
-  if (h < 17) return { label: "Good Afternoon", icon: "🌤️" };
-  if (h < 21) return { label: "Good Evening", icon: "🌆" };
-  return { label: "Night Owl", icon: "🦉" };
+  if (h < 5) return { label: "Night Owl!!"};
+  if (h < 9) return { label: "Early Bird!!" };
+  if (h < 12) return { label: "Good Morning", icon: "☀️"};
+  if (h < 17) return { label: "Good Afternoon"};
+  if (h < 21) return { label: "Good Evening"};
+  return { label: "Night Owl"};
 }
 
 function ThemeToggle({ theme, onToggle }) {
@@ -467,22 +467,25 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
         <div className="px-3 py-3 border-t relative" style={{ borderColor: border }} ref={profileRef}>
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors"
-          >
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: accent }}>A</div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium truncate" style={{ color: textMain }}>Alex Chen</p>
-              <p className="text-[10px] truncate" style={{ color: textMuted }}>alex@fund.com</p>
+            className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors hover:opacity-80"
+            >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "#888073" }}>A</div>
+            <div className="flex-1 min-w-0 text-left pl-1">
+                <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>Alex Chen</p>
+                <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>alex@fund.com</p>
             </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted }} className="shrink-0">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
           </button>
           
           {profileOpen && (
             <div className="absolute bottom-full left-2 right-2 mb-2 rounded-xl shadow-lg border py-1 z-50" style={{ background: surface, borderColor: border }}>
               <button onClick={onToggleTheme} className="w-full text-left px-3 py-2 text-xs" style={{ color: textMuted }}>
-                {dark ? "☀️ Light mode" : "🌙 Dark mode"}
+                {dark ? "Light mode" : "Dark mode"}
               </button>
               <button onClick={onLogout} className="w-full text-left px-3 py-2 text-xs text-red-500">
-                🚪 Log out
+                Log out
               </button>
             </div>
           )}
@@ -567,8 +570,11 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               <div className="flex items-center justify-between px-3 pb-2.5">
                 <div className="flex items-center gap-1">
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors" style={{ color: textMuted, background: bg }}>
-                    Upload
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80" style={{ color: textMuted, background: bg }} title="Upload File">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
                   </button>
                 </div>
                 <button

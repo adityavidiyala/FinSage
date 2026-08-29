@@ -13,6 +13,7 @@ body,
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  --font-family: "Times New Roman", Times, serif;
 }
 
 * {
