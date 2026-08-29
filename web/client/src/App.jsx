@@ -416,6 +416,34 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
     setChats((prev) => [{ id, title: "New chat", preview: "Ask anything…", time: "now", docs: [], messages: [] }, ...prev]);
     setActiveChatId(id);
   }
+  function handleDeleteChat(id, e) {
+    e.stopPropagation();
+    const remaining = chats.filter((c) => c.id !== id);
+    setChats(remaining);
+    if (activeChatId === id) {
+      if (remaining.length > 0) setActiveChatId(remaining[0].id);
+      else newChat();
+    }
+    setOpenMenuId(null);
+  }
+
+  function handleRenameChat(id, currentTitle, e) {
+    e.stopPropagation();
+    const newTitle = prompt("Rename chat:", currentTitle);
+    if (newTitle && newTitle.trim()) {
+      setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title: newTitle.trim() } : c)));
+    }
+    setOpenMenuId(null);
+  }
+
+  function handlePinChat(id, e) {
+    e.stopPropagation();
+    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)));
+    setOpenMenuId(null);
+  }
+
+  // Sort chats so pinned items appear at the top
+  const sortedChats = [...chats].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   return (
     <div className="flex h-full font-sans transition-colors duration-200" style={{ background: bg }}>
@@ -443,7 +471,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
         <div className="flex-1 overflow-y-auto py-2">
           <p className="font-mono text-[10px] uppercase tracking-widest px-4 py-2" style={{ color: textMuted }}>Chats</p>
-          {chats.map((c) => {
+          {sortedChats.map((c) => {
             const active = activeChatId === c.id;
             return (
               <div key={c.id} className="relative chat-menu-container group mx-1 mb-0.5" style={{ width: "calc(100% - 8px)" }}>
@@ -457,8 +485,15 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                 >
                   <div className="flex-1 min-w-0 pr-4">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>{c.title}</span>
-                      <span className="text-[10px] font-mono shrink-0 ml-2" style={{ color: textMuted }}>{c.time}</span>
+                      <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>
+                        {c.title}
+                      </span>
+                      <span className="text-[10px] font-mono shrink-0 ml-2 flex items-center gap-1" style={{ color: textMuted }}>
+                        {c.pinned && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        )}
+                        {c.time}
+                      </span>
                     </div>
                     <p className="text-[11px] truncate" style={{ color: textMuted }}>{c.preview}</p>
                   </div>
@@ -473,23 +508,21 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                   style={{ color: textMuted, background: active ? surface : bg }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="12" cy="5" r="1"></circle>
-                    <circle cx="12" cy="19" r="1"></circle>
+                    <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
                   </svg>
                 </button>
 
                 {openMenuId === c.id && (
                   <div className="absolute left-1/2 top-8 w-40 rounded-lg shadow-lg border py-1.5 z-50 text-xs" style={{ background: surface, borderColor: border }}>
-                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                    <button onClick={(e) => handlePinChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                      Pin
+                      {c.pinned ? "Unpin" : "Pin"}
                     </button>
-                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                    <button onClick={(e) => handleRenameChat(c.id, c.title, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                       Rename
                     </button>
-                    <button className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: "#EF4444" }}>
+                    <button onClick={(e) => handleDeleteChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: "#EF4444" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       Delete
                     </button>
@@ -556,7 +589,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           {activeChat.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <p className="text-3xl mb-1">{greeting.icon}</p>
-              <p className="text-3xl font-medium mb-1 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
+              <p className="text-5xl font-medium mb-3 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
               <p className="text-md mb-8 italic" style={{ color: textMuted, fontFamily: '"Times New Roman", Times, serif' }}>Ask the filings. Every answer comes with a source.</p>
               <div className="grid grid-cols-2 gap-2 max-w-md w-full">
                 {SUGGESTED.map((s) => (
