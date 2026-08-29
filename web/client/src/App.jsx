@@ -138,10 +138,6 @@ function LandingPage({ onStart, theme, onToggleTheme }) {
       </nav>
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="inline-flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded-full border mb-8" style={{ background: surface, borderColor: border, color: textMuted }}>
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: accent }} />
-          Beta · RAG-powered financial research
-        </div>
         <h1 className="font-display text-5xl font-bold tracking-tight leading-tight max-w-2xl mb-6" style={{ color: textMain }}>
           Ask questions across<br />
           <span style={{ color: accent }}>every filing you own.</span>
@@ -153,7 +149,7 @@ function LandingPage({ onStart, theme, onToggleTheme }) {
           Get Started
         </button>
 
-        <div className="grid grid-cols-3 gap-4 mt-20 max-w-2xl w-full">
+        <div className="grid grid-cols-3 gap-4 mt-10 max-w-2xl w-full">
           {[
             {title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
             {title: "Cited answers", desc: "Every response references the exact page and excerpt." },
@@ -493,7 +489,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
     <div className="flex h-full font-sans transition-colors duration-200" style={{ background: bg }}>
       <aside className="w-60 flex flex-col border-r shrink-0" style={{ background: sidebarBg, borderColor: border }}>
         <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: border }}>
-          <div className="flex items-center gap-2">
+          <button onClick={newChat} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <circle cx="6" cy="6" r="2.5" fill={sidebarBg} />
@@ -501,7 +497,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               </svg>
             </div>
             <span className="font-display font-bold text-sm" style={{ color: textMain }}>FinSage</span>
-          </div>
+          </button>
           <button
             onClick={newChat}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
