@@ -155,9 +155,9 @@ function LandingPage({ onStart, theme, onToggleTheme }) {
 
         <div className="grid grid-cols-3 gap-4 mt-20 max-w-2xl w-full">
           {[
-            { icon: "📄", title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
-            { icon: "🔗", title: "Cited answers", desc: "Every response references the exact page and excerpt." },
-            { icon: "⚡", title: "Instant retrieval", desc: "Semantic search over millions of words in under 2 seconds." },
+            {title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
+            {title: "Cited answers", desc: "Every response references the exact page and excerpt." },
+            {title: "Instant retrieval", desc: "Semantic search over millions of words in under 2 seconds." },
           ].map((f) => (
             <div key={f.title} className="rounded-xl p-5 text-left border" style={{ background: surface, borderColor: border }}>
               <div className="text-2xl mb-3">{f.icon}</div>
@@ -347,8 +347,10 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [showRightSidebar, setShowRightSidebar] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [editingChatId, setEditingChatId] = useState(null); // Tracks which chat is being renamed
+  const [editTitle, setEditTitle] = useState(""); // Tracks the input text
   const [sampleIdx, setSampleIdx] = useState(0);
   
   const bottomRef = useRef(null);
@@ -429,11 +431,16 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
   function handleRenameChat(id, currentTitle, e) {
     e.stopPropagation();
-    const newTitle = prompt("Rename chat:", currentTitle);
-    if (newTitle && newTitle.trim()) {
-      setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title: newTitle.trim() } : c)));
-    }
+    setEditingChatId(id);
+    setEditTitle(currentTitle);
     setOpenMenuId(null);
+  }
+
+  function saveRename() {
+    if (editingChatId && editTitle.trim()) {
+      setChats((prev) => prev.map((c) => (c.id === editingChatId ? { ...c, title: editTitle.trim() } : c)));
+    }
+    setEditingChatId(null);
   }
 
   function handlePinChat(id, e) {
@@ -444,6 +451,43 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
   // Sort chats so pinned items appear at the top
   const sortedChats = [...chats].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  const chatInputForm = (
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="flex flex-col border rounded-xl transition-colors shadow-sm" style={{ borderColor: border, background: surface }}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+          placeholder="Ask about revenue, risk factors, guidance…"
+          rows={1}
+          className="flex-1 bg-transparent px-4 pt-4 pb-2 text-sm outline-none resize-none leading-relaxed w-full"
+          style={{ color: textMain, maxHeight: 120 }}
+        />
+        <div className="flex items-center justify-between px-3 pb-2.5">
+          <div className="flex items-center gap-1">
+            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80" style={{ color: textMuted, background: bg }} title="Upload File">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+          <button
+            onClick={() => send(input)}
+            disabled={!input.trim() || loading}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-25"
+            style={{ background: btnBg }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M1.5 6.5h10M6.5 1.5l5 5-5 5" stroke={btnText} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex h-full font-sans transition-colors duration-200" style={{ background: bg }}>
@@ -485,9 +529,25 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                 >
                   <div className="flex-1 min-w-0 pr-4">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>
-                        {c.title}
-                      </span>
+                      {editingChatId === c.id ? (
+                        <input
+                          autoFocus
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={saveRename}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveRename();
+                            if (e.key === "Escape") setEditingChatId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs font-semibold bg-transparent outline-none border-b border-gray-400 w-full mr-2 truncate pb-0.5"
+                          style={{ color: textMain }}
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>
+                          {c.title}
+                        </span>
+                      )}
                       <span className="text-[10px] font-mono shrink-0 ml-2 flex items-center gap-1" style={{ color: textMuted }}>
                         {c.pinned && (
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
@@ -587,22 +647,13 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
         <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: bg }}>
           {activeChat.messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <p className="text-3xl mb-1">{greeting.icon}</p>
-              <p className="text-5xl font-medium mb-3 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
-              <p className="text-md mb-8 italic" style={{ color: textMuted, fontFamily: '"Times New Roman", Times, serif' }}>Ask the filings. Every answer comes with a source.</p>
-              <div className="grid grid-cols-2 gap-2 max-w-md w-full">
-                {SUGGESTED.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="text-left text-xs px-3 py-2.5 rounded-lg border transition-colors leading-relaxed"
-                    style={{ background: surface, borderColor: border, color: textMuted }}
-                  >
-                    {s}
-                  </button>
-                ))}
+            <div className="flex flex-col items-center justify-center h-full text-center px-6">
+              <div className="mb-8">
+                <p className="text-4xl mb-3">{greeting.icon}</p>
+                <p className="text-5xl font-medium mb-3 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
+                <p className="text-lg italic" style={{ color: textMuted, fontFamily: '"Times New Roman", Times, serif' }}>Ask the filings. Every answer comes with a source.</p>
               </div>
+              {chatInputForm}
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">
@@ -621,42 +672,11 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           )}
         </div>
 
-        <div className="px-6 py-4 shrink-0" style={{ background: bg }}>
-          <div className="max-w-2xl mx-auto">
-            <div className="flex flex-col border rounded-xl transition-colors" style={{ borderColor: border, background: surface }}>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-                placeholder="Ask about revenue, risk factors, guidance…"
-                rows={1}
-                className="flex-1 bg-transparent px-4 pt-3 pb-1 text-sm outline-none resize-none leading-relaxed w-full"
-                style={{ color: textMain, maxHeight: 120 }}
-              />
-              <div className="flex items-center justify-between px-3 pb-2.5">
-                <div className="flex items-center gap-1">
-                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80" style={{ color: textMuted, background: bg }} title="Upload File">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                  </button>
-                </div>
-                <button
-                  onClick={() => send(input)}
-                  disabled={!input.trim() || loading}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-25"
-                  style={{ background: btnBg }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                    <path d="M1.5 6.5h10M6.5 1.5l5 5-5 5" stroke={btnText} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+        {activeChat.messages.length > 0 && (
+          <div className="px-6 py-4 shrink-0" style={{ background: bg }}>
+            {chatInputForm}
           </div>
-        </div>
+        )}
       </div>
 
       {showRightSidebar && (
