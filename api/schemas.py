@@ -25,6 +25,10 @@ class QueryRequest(BaseModel):
         default=True,
         description="Whether to check/populate the semantic cache for this query.",
     )
+    use_decomposition: bool = Field(
+        default=False,
+        description="Whether to break the question into sub-queries for retrieval.",
+    )
 
 
 class Citation(BaseModel):
@@ -33,6 +37,7 @@ class Citation(BaseModel):
     page_number: int | str | None = None
     section: str | None = None
     doc_type: str | None = None
+    chunk_kind: str | None = None
 
 
 class QueryResponse(BaseModel):

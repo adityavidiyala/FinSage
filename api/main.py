@@ -82,6 +82,7 @@ async def query(request: QueryRequest) -> QueryResponse:
             retriever=retriever,
             use_cache=request.use_cache,
             history=history,
+            use_decomposition=request.use_decomposition,
         )
     except Exception:
         logger.exception("answer_query() failed for question: %r", request.question)
