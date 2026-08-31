@@ -11,12 +11,13 @@ if __name__ == "__main__":
         sys.exit(1)
 
     question = sys.argv[1]
+    use_decomposition = "--decompose" in sys.argv
 
     print("Loading retriever (BM25 + Qdrant + reranker)...")
     retriever = build_retriever()
 
     print(f"\nQuestion: {question}\n")
-    result = answer_query(question, retriever)
+    result = answer_query(question, retriever, use_decomposition=use_decomposition)
 
     print("Answer:")
     if result.get("from_cache"):

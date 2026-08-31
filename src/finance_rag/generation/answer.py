@@ -1,6 +1,7 @@
 """
 Final answer generation with inline citations: takes a question + retrieved
-Document objects, numbers them as sources, and asks the LLM to cite which
+Document objects, hydrates any table-row chunks back to their full parent
+table, numbers everything as sources, and asks the LLM to cite which
 source(s) support each part of its answer using [n] markers. The markers are
 then resolved back to real chunk metadata for display.
 """
@@ -33,14 +34,49 @@ Answer:
 """)
 
 
-def _build_numbered_context(retrieved_docs: list[Document]) -> str:
+def _hydrate_and_dedup_sources(retrieved_docs: list[Document]) -> list[Document]:
+    """
+    Expands table-row chunks back to their full parent table (via
+    full_table_markdown, set at chunking time) and deduplicates by table_id
+    so a table retrieved via multiple rows only appears once in the prompt.
+    Non-table chunks pass through unchanged.
+    """
+    seen_tables = set()
+    hydrated_docs = []
+
+    for doc in retrieved_docs:
+        metadata = doc.metadata.copy()
+
+        if metadata.get("contains_table") and metadata.get("full_table_markdown"):
+            table_id = metadata.get("table_id")
+            if table_id not in seen_tables:
+                seen_tables.add(table_id)
+                hydrated_docs.append(
+                    Document(
+                        page_content=metadata["full_table_markdown"],
+                        metadata=metadata,
+                    )
+                )
+            # else: already added this table via an earlier row — skip.
+        else:
+            hydrated_docs.append(doc)
+
+    return hydrated_docs
+
+
+def _build_numbered_context(hydrated_docs: list[Document]) -> str:
     blocks = []
-    for i, doc in enumerate(retrieved_docs, start=1):
-        blocks.append(f"[{i}] {doc.page_content}")
+    for i, doc in enumerate(hydrated_docs, start=1):
+        section_tag = doc.metadata.get("section", "")
+        page_tag = doc.metadata.get("page_number")
+        header = f"[{i}]"
+        if section_tag or page_tag:
+            header += f" (Section: {section_tag}, Page: {page_tag})"
+        blocks.append(f"{header}\n{doc.page_content}")
     return "\n\n".join(blocks)
 
 
-def _extract_citations(answer_text: str, retrieved_docs: list[Document]) -> list[dict]:
+def _extract_citations(answer_text: str, hydrated_docs: list[Document]) -> list[dict]:
     """
     Finds all [n] markers actually used in the answer, deduplicates them,
     and resolves each to its source chunk's metadata. Silently skips any
@@ -50,8 +86,8 @@ def _extract_citations(answer_text: str, retrieved_docs: list[Document]) -> list
 
     citations = []
     for n in marker_numbers:
-        if 1 <= n <= len(retrieved_docs):
-            doc = retrieved_docs[n - 1]
+        if 1 <= n <= len(hydrated_docs):
+            doc = hydrated_docs[n - 1]
             citations.append({
                 "marker": n,
                 "chunk_id": doc.metadata.get("chunk_id"),
@@ -59,17 +95,20 @@ def _extract_citations(answer_text: str, retrieved_docs: list[Document]) -> list
                 "page_number": doc.metadata.get("page_number"),
                 "section": doc.metadata.get("section"),
                 "doc_type": doc.metadata.get("doc_type"),
+                "chunk_kind": doc.metadata.get("chunk_kind"),
             })
     return citations
 
 
 def generate_answer(question: str, retrieved_docs: list[Document]) -> dict:
     """
-    Returns {"answer": str, "citations": list[dict]}.
+    Returns {"answer": str, "citations": list[dict], "usage": dict}.
     `answer` contains inline [n] markers as written by the LLM.
     `citations` is the resolved, deduplicated list of sources those markers point to.
     """
-    context_text = _build_numbered_context(retrieved_docs)
+    hydrated_docs = _hydrate_and_dedup_sources(retrieved_docs)
+
+    context_text = _build_numbered_context(hydrated_docs)
     prompt = ANSWER_PROMPT.format(context=context_text, question=question)
 
     for attempt in range(5):
@@ -92,8 +131,8 @@ def generate_answer(question: str, retrieved_docs: list[Document]) -> dict:
                     "total_tokens": response.usage_metadata.get("total_tokens"),
                 }
 
-            answer_text = content.strip()
-            citations = _extract_citations(answer_text, retrieved_docs)
+            answer_text = str(content).strip()
+            citations = _extract_citations(answer_text, hydrated_docs)
 
             return {"answer": answer_text, "citations": citations, "usage": usage}
 
@@ -105,4 +144,4 @@ def generate_answer(question: str, retrieved_docs: list[Document]) -> dict:
             else:
                 raise
 
-    return {"answer": "GENERATION FAILED after retries", "citations": []}
+    return {"answer": "GENERATION FAILED after retries", "citations": [], "usage": {}}

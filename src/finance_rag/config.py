@@ -7,8 +7,8 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-PDF_PATH = os.getenv("PDF_PATH", "data/raw/walmart_10q.pdf")
-CACHE_DIR = os.getenv("CACHE_DIR", "cache/walmart_10Q_parsed")
+PDF_PATH = os.getenv("PDF_PATH", r"data\raw\Google 10Q.pdf")
+CACHE_DIR = os.getenv("CACHE_DIR", r"cache\google_10Q_parsed")
 
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -27,11 +27,11 @@ MERGE_PEER_CHUNKS = True
 # ---------------------------------------------------------------------------
 # Retrieval
 # ---------------------------------------------------------------------------
-BM25_K = 10
-VECTOR_K = 10
+BM25_K = 30
+VECTOR_K = 30
 HYBRID_WEIGHTS = [0.4, 0.6]  # [BM25, vector] — tilt toward semantic, keyword still counts
-RERANK_MODEL = "BAAI/bge-reranker-base"
-RERANK_TOP_N = 10
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+RERANK_TOP_N = 25
 DEDUP_SIMILARITY_THRESHOLD = 0.85
 
 # ---------------------------------------------------------------------------
@@ -42,12 +42,14 @@ GOOGLE_API_KEY_FALLBACK = os.environ.get("GOOGLE_API_KEY_FALLBACK")
 LLM_MODEL = "gemini-3.1-flash-lite"
 LLM_TEMPERATURE = 0
 
+JINA_API_KEY = os.getenv("JINA_API_KEY")
+
 # ---------------------------------------------------------------------------
 # Qdrant
 # ---------------------------------------------------------------------------
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-COLLECTION_NAME = "finance_rag"
+COLLECTION_NAME = "finance_rag_exp_2"
 
 # ---------------------------------------------------------------------------
 # Observability (LangSmith)

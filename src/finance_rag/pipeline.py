@@ -20,6 +20,8 @@ from finance_rag.config import SEMANTIC_CACHE_ENABLED
 from finance_rag.generation.rewrite import rewrite_standalone_question
 from finance_rag.guardrails.input_guardrails import classify_input
 from finance_rag.guardrails.pii_check import detect_pii
+from finance_rag.retrieval.decompose import decompose_query
+
 
 def build_index() -> None:
     """One-time (or re-run on new document) ingestion: parse, chunk, embed, upsert to Qdrant."""
@@ -56,6 +58,7 @@ def answer_query(
     retriever,
     use_cache: bool = SEMANTIC_CACHE_ENABLED,
     history: list[dict] | None = None,
+    use_decomposition: bool = True,
 ) -> dict:
     if GUARDRAILS_ENABLED:
 
@@ -113,11 +116,22 @@ def answer_query(
                 "cache_similarity": cached["cache_similarity"],
             }
 
-    with track_stage(question, "retrieval"):
-        retrieved_docs = retriever.invoke(question)
+    if use_decomposition:
+        with track_stage(question, "decompose") as extra:
+            sub_queries = decompose_query(question)
+            extra["sub_queries"] = sub_queries
+
+        with track_stage(question, "retrieval") as extra:
+            retrieved_docs = []
+            for sq in sub_queries:
+                retrieved_docs.extend(retriever.invoke(sq))
+            extra["sub_query_count"] = len(sub_queries)
+    else:
+        with track_stage(question, "retrieval"):
+            retrieved_docs = retriever.invoke(question)
 
     with track_stage(question, "dedup"):
-        retrieved_docs = dedup_chunks(retrieved_docs)
+            retrieved_docs = dedup_chunks(retrieved_docs)
 
     with track_stage(question, "generation") as extra:
         result = generate_answer(question, retrieved_docs)

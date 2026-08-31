@@ -1,6 +1,9 @@
 """
 Semantic chunking: walks a parsed docling document and produces token-bounded,
-heading-aware chunks, keeping tables as their own standalone chunks.
+heading-aware chunks. Text is chunked normally; tables are split into
+per-row "mini-table" chunks (parent-child pattern) so retrieval can match a
+specific row precisely, while the full table is preserved in metadata for
+hydration back to full context at generation time.
 """
 
 import re
@@ -48,17 +51,51 @@ def _make_overlap(parts, overlap_tokens=OVERLAP_TOKENS):
     return overlap
 
 
+def _split_markdown_table_to_row_chunks(table_markdown: str, heading: str = "") -> list[str]:
+    """
+    Splits a markdown table into mini-tables, each containing:
+    [Heading + Table Header Lines + a single data row]
+    This lets retrieval match one specific row (e.g. one debt tranche, one
+    quarter's figure) instead of competing against the whole table's text.
+    """
+    lines = [line.strip() for line in table_markdown.splitlines() if line.strip() and "|" in line]
+
+    # Too short to split meaningfully — keep it intact as one chunk.
+    if len(lines) < 3:
+        return [f"### {heading}\n\n{table_markdown}".strip()] if heading else [table_markdown]
+
+    header_lines = [lines[0], lines[1]]  # column headers + separator row
+    header_block = "\n".join(header_lines)
+    data_lines = lines[2:]
+
+    row_chunks = []
+    for row in data_lines:
+        prefix = f"### {heading}\n" if heading else ""
+        mini_table = f"{prefix}{header_block}\n{row}"
+        row_chunks.append(mini_table)
+
+    return row_chunks
+
+
 def build_semantic_chunks(document, pdf_path: str = PDF_PATH) -> list[dict]:
     """
     Walk a docling `document` and produce a list of chunk dicts:
-    {"content": str, "metadata": {chunk_id, source_filename, doc_title,
-     page_number, section, contains_table, token_count, raw_chunk}}
+    {"content": str, "metadata": {...}}
+
+    Text chunks: {chunk_id, source_filename, doc_title, page_number, section,
+    contains_table=False, chunk_kind="text", token_count, raw_chunk,
+    full_table_markdown=None}
+
+    Table row chunks: {chunk_id, source_filename, doc_title, page_number, section,
+    contains_table=True, chunk_kind="table_row", table_id, row_index,
+    token_count, raw_chunk, full_table_markdown}
     """
     source_filename = Path(pdf_path).name if isinstance(pdf_path, str) else "unknown.pdf"
     doc_title = source_filename
 
     semantic_chunks = []
     chunk_counter = 0
+    table_counter = 0
 
     def flush_chunk(parts, section, contains_table=False, page_number=None, raw_table=None):
         nonlocal chunk_counter
@@ -75,8 +112,10 @@ def build_semantic_chunks(document, pdf_path: str = PDF_PATH) -> list[dict]:
                 "page_number": page_number,
                 "section": section,
                 "contains_table": contains_table,
+                "chunk_kind": "text",
                 "token_count": _token_count(content),
                 "raw_chunk": raw_table if raw_table is not None else content,
+                "full_table_markdown": None,
             }
         })
         chunk_counter += 1
@@ -107,7 +146,7 @@ def build_semantic_chunks(document, pdf_path: str = PDF_PATH) -> list[dict]:
                 last_heading = heading
             continue
 
-        # --- Tables ---
+        # --- Tables: split into per-row mini-table chunks ---
         if item_type == "TableItem":
             try:
                 table_content = item.export_to_markdown()
@@ -123,9 +162,31 @@ def build_semantic_chunks(document, pdf_path: str = PDF_PATH) -> list[dict]:
                 current_tokens = 0
 
             context_heading = last_heading if last_heading else current_section
-            table_parts = [context_heading, table_content] if context_heading else [table_content]
 
-            flush_chunk(table_parts, current_section, True, current_page, raw_table=table_content)
+            row_mini_tables = _split_markdown_table_to_row_chunks(table_content, context_heading)
+            table_unique_id = f"tbl_pg{current_page}_{table_counter}"
+            table_counter += 1
+
+            for row_idx, row_text in enumerate(row_mini_tables):
+                semantic_chunks.append({
+                    "content": row_text,
+                    "metadata": {
+                        "chunk_id": chunk_counter,
+                        "source_filename": source_filename,
+                        "doc_title": doc_title,
+                        "page_number": current_page,
+                        "section": current_section,
+                        "contains_table": True,
+                        "chunk_kind": "table_row",
+                        "table_id": table_unique_id,
+                        "row_index": row_idx,
+                        "token_count": _token_count(row_text),
+                        "raw_chunk": row_text,
+                        "full_table_markdown": table_content,
+                    }
+                })
+                chunk_counter += 1
+
             continue
 
         # --- Text ---
