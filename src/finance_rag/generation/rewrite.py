@@ -26,4 +26,10 @@ def rewrite_standalone_question(history: list[dict], question: str) -> str:
 
     prompt = REWRITE_PROMPT.format(history_block=history_block, question=question)
     response = llm.invoke(prompt)
-    return response.content.strip()
+    content = response.content
+    if isinstance(content, list):
+        content = "".join(
+            part if isinstance(part, str) else part.get("text", "")
+            for part in content
+        )
+    return content.strip()

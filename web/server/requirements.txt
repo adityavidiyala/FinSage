@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+passlib[bcrypt]
+PyJWT[crypto]
+python-multipart
+sqlalchemy
+psycopg2-binary
+pydantic-settings
+python-dotenv

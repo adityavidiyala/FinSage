@@ -172,6 +172,7 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [error, setError] = useState(""); // Added error handling state
   
   const dark = theme === "dark";
   const bg = dark ? "#1C1B19" : "#F4F3EE";
@@ -181,7 +182,46 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
   const textMuted = dark ? "#B1ADA1" : "#6B6660";
   const inputBg = dark ? "#1C1B19" : "#F4F3EE";
   const btnBg = dark ? "#F4F3EE" : "#1C1B19";
-  const btnText = dark ? "#1C1B19" : "#F4F3EE";
+  const btnText = dark ? "#1C1B19" : "#FFFFFF"; 
+
+  // Handle API connection for both Login and Signup
+  async function handleSubmit() {
+    setError("");
+    try {
+      if (tab === "signup") {
+        // 1. Signup Request
+        const res = await fetch("http://127.0.0.1:8000/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Signup failed");
+        
+        // Automatically switch to login tab or sign in directly after successful signup
+        setTab("login");
+      } else {
+        // 2. Login Request (FastAPI OAuth2 expects URL-encoded form data)
+        const formData = new URLSearchParams();
+        formData.append("username", email);
+        formData.append("password", password);
+
+        const res = await fetch("http://127.0.0.1:8000/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Login failed");
+
+        // Save token and enter main app
+        localStorage.setItem("token", data.access_token);
+        onAuth();
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
     <div className="min-h-full flex flex-col items-center justify-center font-sans transition-colors duration-200" style={{ background: bg }}>
@@ -209,6 +249,12 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
           </div>
           <span className="font-display font-bold text-lg tracking-tight" style={{ color: textMain }}>FinSage</span>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-4">
           {tab === "signup" && (
@@ -246,7 +292,7 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
             />
           </div>
           <button
-            onClick={onAuth}
+            onClick={handleSubmit}
             className="w-full font-semibold py-2.5 rounded-lg text-sm transition-all hover:opacity-90 mt-2"
             style={{ background: btnBg, color: btnText }}
           >
@@ -254,7 +300,6 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
           </button>
         </div>
         
-        {/* The single, correct toggle text at the bottom */}
         {tab === "login" ? (
           <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
             Don't have an account? <button onClick={() => setTab("signup")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign up</button>
