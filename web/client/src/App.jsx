@@ -398,7 +398,8 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const [editingChatId, setEditingChatId] = useState(null); // Tracks which chat is being renamed
   const [editTitle, setEditTitle] = useState(""); // Tracks the input text
   const [sampleIdx, setSampleIdx] = useState(0);
-  
+  const [user, setUser] = useState({ name: "Loading...", email: "" });
+
   const bottomRef = useRef(null);
   const profileRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -417,6 +418,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const btnText = dark ? "#1C1B19" : "#F4F3EE";
   const accent = "#7C9A6E";
 
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeChatId, loading]);
@@ -428,6 +430,28 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    async function fetchUserProfile() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      
+      try {
+        const res = await fetch("http://127.0.0.1:8000/me", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user profile", err);
+      }
+    }
+    fetchUserProfile();
   }, []);
 
   const SAMPLE_RESPONSES = [
@@ -690,12 +714,14 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors hover:opacity-80"
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "#888073" }}>A</div>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "#888073" }}>
+              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+            </div>
             {showLeftSidebar && (
               <>
                 <div className="flex-1 min-w-0 text-left pl-1">
-                    <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>Alex Chen</p>
-                    <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>alex@fund.com</p>
+                    <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>{user.name}</p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>{user.email}</p>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted }} className="shrink-0">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -709,7 +735,10 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               <button onClick={onToggleTheme} className="w-full text-left px-3 py-2 text-xs" style={{ color: textMuted }}>
                 {dark ? "Light mode" : "Dark mode"}
               </button>
-              <button onClick={onLogout} className="w-full text-left px-3 py-2 text-xs text-red-500">
+              <button onClick={() => {
+                localStorage.removeItem("token");
+                onLogout();
+              }} className="w-full text-left px-3 py-2 text-xs text-red-500">
                 Log out
               </button>
             </div>

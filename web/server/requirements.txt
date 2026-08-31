@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 passlib[bcrypt]
+bcrypt==3.2.2
 PyJWT[crypto]
 python-multipart
 sqlalchemy
