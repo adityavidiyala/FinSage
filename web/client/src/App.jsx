@@ -1,68 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
-const DOCS = [
-  { id: "d1", name: "AAPL_10K_2024.pdf", type: "10-K", size: "4.2 MB", date: "Jan 12" },
-  { id: "d2", name: "NVDA_10Q_Q3.pdf", type: "10-Q", size: "2.8 MB", date: "Jan 9" },
-  { id: "d3", name: "MSFT_Earnings_Q4.pdf", type: "Transcript", size: "1.1 MB", date: "Jan 5" },
-  { id: "d4", name: "GOOGL_Proxy_2024.pdf", type: "Proxy", size: "3.4 MB", date: "Dec 28" },
-  { id: "d5", name: "JPM_8K_Jan25.pdf", type: "8-K", size: "0.6 MB", date: "Dec 20" },
-];
-
-const INITIAL_CHATS = [
-  {
-    id: "c1",
-    title: "Apple Revenue Analysis",
-    preview: "Total net sales of $391B…",
-    time: "2h ago",
-    docs: ["d1"], // Included documents for this specific chat
-    messages: [
-      { id: "m1", role: "user", content: "What is Apple's revenue growth for FY2024?" },
-      {
-        id: "m2",
-        role: "assistant",
-        content:
-          "Apple reported total net sales of $391.0 billion for FY2024, a 2% increase year-over-year. Services revenue was the standout, growing 13% to $96.2 billion — now 24.6% of total revenue. iPhone revenue dipped slightly by 0.4% to $201.2 billion.",
-        citations: [
-          { doc: "AAPL_10K_2024.pdf", page: 23, excerpt: "Net sales increased 2 percent or $7.7 billion during 2024 compared to 2023, driven primarily by higher net sales of Services and Mac." },
-        ],
-      },
-    ],
-  },
-  {
-    id: "c2",
-    title: "NVIDIA Supply Chain",
-    preview: "TSMC CoWoS bottleneck…",
-    time: "Yesterday",
-    docs: ["d2"],
-    messages: [
-      { id: "m3", role: "user", content: "How is NVIDIA managing its supply chain risks?" },
-      {
-        id: "m4",
-        role: "assistant",
-        content:
-          "NVIDIA disclosed significant supply concentration in TSMC for wafer manufacturing. CoWoS advanced packaging is identified as a near-term bottleneck. Despite this, gross margins expanded to 74.6% in Q3, reflecting strong pricing power.",
-        citations: [
-          { doc: "NVDA_10Q_Q3.pdf", page: 14, excerpt: "We rely on TSMC to manufacture our products. The inability to procure sufficient CoWoS packaging has in the past limited our ability to meet customer demand." },
-        ],
-      },
-    ],
-  },
-  {
-    id: "c3",
-    title: "MSFT Cloud Growth",
-    preview: "Azure grew 33% YoY…",
-    time: "2 days ago",
-    docs: ["d3"],
-    messages: [],
-  },
-];
-
-const SUGGESTED = [
-  "What were Apple's key risk factors?",
-  "Compare NVDA and MSFT data center revenue",
-  "Summarize JPMorgan's Q1 outlook",
-  "What is Google's advertising trend?",
-];
+import ReactMarkdown from "react-markdown";
 
 const typeColors = {
   "10-K": "bg-stone-100 text-stone-700 border-stone-300",
@@ -70,16 +7,56 @@ const typeColors = {
   Transcript: "bg-teal-50 text-teal-700 border-teal-200",
   Proxy: "bg-rose-50 text-rose-700 border-rose-200",
   "8-K": "bg-stone-200 text-stone-800 border-stone-300",
+  DOC: "bg-stone-100 text-stone-700 border-stone-300",
 };
+
+const statusColors = {
+  ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  parsing: "bg-amber-50 text-amber-700 border-amber-200 animate-pulse",
+  failed: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+async function authFetch(endpoint, options = {}) {
+  const token = localStorage.getItem("token");
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    window.location.reload();
+    throw new Error("Session expired. Please log in again.");
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 5) return { label: "Night Owl!!"};
+  if (h < 5) return { label: "Night Owl!!" };
   if (h < 9) return { label: "Early Bird!!" };
-  if (h < 12) return { label: "Good Morning", icon: "☀️"};
-  if (h < 17) return { label: "Good Afternoon"};
-  if (h < 21) return { label: "Good Evening"};
-  return { label: "Night Owl"};
+  if (h < 12) return { label: "Good Morning", icon: "☀️" };
+  if (h < 17) return { label: "Good Afternoon" };
+  if (h < 21) return { label: "Good Evening" };
+  return { label: "Night Owl" };
 }
 
 function ThemeToggle({ theme, onToggle }) {
@@ -108,7 +85,7 @@ function ThemeToggle({ theme, onToggle }) {
 
 function LandingPage({ onStart, theme, onToggleTheme }) {
   const dark = theme === "dark";
-  const bg = dark ? "#1C1B19" : "#F4F3EE"; 
+  const bg = dark ? "#1C1B19" : "#F4F3EE";
   const surface = dark ? "#2A2925" : "#FFFFFF";
   const border = dark ? "#38342E" : "#B1ADA1";
   const textMain = dark ? "#F4F3EE" : "#1C1B19";
@@ -145,18 +122,17 @@ function LandingPage({ onStart, theme, onToggleTheme }) {
         <p className="text-lg max-w-md mb-10 leading-relaxed" style={{ color: textMuted }}>
           Upload 10-Ks, earnings transcripts, and proxy statements. Get precise, cited answers from your entire document library in seconds.
         </p>
-        <button onClick={onStart} className="font-semibold px-8 py-3.5 rounded-xl text-sm transition-all hover:opacity-90 shadow-sm" style={{ background: btnBg, color: btnText }}>
+        <button onClick={onStart} className="font-semibold px-8 py-3.5 rounded-xl text-sm transition-all hover:opacity-90 shadow-sm cursor-pointer" style={{ background: btnBg, color: btnText }}>
           Get Started
         </button>
 
         <div className="grid grid-cols-3 gap-4 mt-10 max-w-2xl w-full">
           {[
-            {title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
-            {title: "Cited answers", desc: "Every response references the exact page and excerpt." },
-            {title: "Instant retrieval", desc: "Semantic search over millions of words in under 2 seconds." },
+            { title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
+            { title: "Cited answers", desc: "Every response references the exact page and section." },
+            { title: "Instant retrieval", desc: "Hybrid BM25 and vector search with reranking." },
           ].map((f) => (
             <div key={f.title} className="rounded-xl p-5 text-left border" style={{ background: surface, borderColor: border }}>
-              <div className="text-2xl mb-3">{f.icon}</div>
               <p className="font-semibold text-sm mb-1" style={{ color: textMain }}>{f.title}</p>
               <p className="text-xs leading-relaxed" style={{ color: textMuted }}>{f.desc}</p>
             </div>
@@ -172,8 +148,8 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState(""); // Added error handling state
-  
+  const [error, setError] = useState("");
+
   const dark = theme === "dark";
   const bg = dark ? "#1C1B19" : "#F4F3EE";
   const surface = dark ? "#2A2925" : "#FFFFFF";
@@ -182,31 +158,26 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
   const textMuted = dark ? "#B1ADA1" : "#6B6660";
   const inputBg = dark ? "#1C1B19" : "#F4F3EE";
   const btnBg = dark ? "#F4F3EE" : "#1C1B19";
-  const btnText = dark ? "#1C1B19" : "#FFFFFF"; 
+  const btnText = dark ? "#1C1B19" : "#FFFFFF";
 
-  // Handle API connection for both Login and Signup
   async function handleSubmit() {
     setError("");
     try {
       if (tab === "signup") {
-        // 1. Signup Request
-        const res = await fetch("http://127.0.0.1:8000/signup", {
+        const res = await fetch(`${API_BASE_URL}/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, password }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Signup failed");
-        
-        // Automatically switch to login tab or sign in directly after successful signup
         setTab("login");
       } else {
-        // 2. Login Request (FastAPI OAuth2 expects URL-encoded form data)
         const formData = new URLSearchParams();
         formData.append("username", email);
         formData.append("password", password);
 
-        const res = await fetch("http://127.0.0.1:8000/login", {
+        const res = await fetch(`${API_BASE_URL}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: formData,
@@ -214,7 +185,6 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Login failed");
 
-        // Save token and enter main app
         localStorage.setItem("token", data.access_token);
         onAuth();
       }
@@ -225,9 +195,8 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
 
   return (
     <div className="min-h-full flex flex-col items-center justify-center font-sans transition-colors duration-200" style={{ background: bg }}>
-      
       <div className="absolute top-5 left-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: textMuted }}>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 cursor-pointer" style={{ color: textMuted }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -293,20 +262,20 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
           </div>
           <button
             onClick={handleSubmit}
-            className="w-full font-semibold py-2.5 rounded-lg text-sm transition-all hover:opacity-90 mt-2"
+            className="w-full font-semibold py-2.5 rounded-lg text-sm transition-all hover:opacity-90 mt-2 cursor-pointer"
             style={{ background: btnBg, color: btnText }}
           >
             {tab === "login" ? "Sign in" : "Create account"}
           </button>
         </div>
-        
+
         {tab === "login" ? (
           <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
-            Don't have an account? <button onClick={() => setTab("signup")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign up</button>
+            Don't have an account? <button onClick={() => setTab("signup")} className="underline font-medium ml-1 cursor-pointer" style={{ color: textMain }}>Sign up</button>
           </p>
         ) : (
           <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
-            Already have an account? <button onClick={() => setTab("login")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign in</button>
+            Already have an account? <button onClick={() => setTab("login")} className="underline font-medium ml-1 cursor-pointer" style={{ color: textMain }}>Sign in</button>
           </p>
         )}
       </div>
@@ -315,21 +284,26 @@ function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
 }
 
 function CitationCard({ citation, dark }) {
-  const docObj = DOCS.find((d) => d.name === citation.doc);
-  const docType = docObj ? docObj.type : "DOC";
   const surface = dark ? "#2A2925" : "#FFFFFF";
   const border = dark ? "#38342E" : "#B1ADA1";
   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+  const docType = citation.doc_type || "DOC";
 
   return (
     <div className="rounded-lg p-3 border text-xs mt-2" style={{ background: surface, borderColor: border }}>
       <div className="flex items-center gap-2 mb-2">
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${typeColors[docType] || ""}`}>{docType}</span>
-        <span className="font-mono" style={{ color: textMuted }}>{citation.doc} · p.{citation.page}</span>
+        <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${typeColors[docType] || typeColors.DOC}`}>
+          {docType}
+        </span>
+        <span className="font-mono truncate" style={{ color: textMuted }}>
+          {citation.source_filename || "Document"} · p.{citation.page_number ?? "?"}
+        </span>
       </div>
-      <p className="leading-relaxed border-l-2 pl-2 italic" style={{ borderColor: "#7C9A6E", color: textMuted }}>
-        "{citation.excerpt}"
-      </p>
+      {citation.section && (
+        <p className="text-[11px] font-semibold mb-1" style={{ color: textMuted }}>
+          Section: {citation.section}
+        </p>
+      )}
     </div>
   );
 }
@@ -364,12 +338,14 @@ function MessageBubble({ msg, dark }) {
         ✦
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm leading-relaxed mb-2" style={{ color: textMain }}>{msg.content}</p>
+        <div className="text-sm leading-relaxed mb-2 prose prose-sm max-w-none" style={{ color: textMain }}>
+          <ReactMarkdown>{msg.content}</ReactMarkdown>
+        </div>
         {msg.citations && msg.citations.length > 0 && (
           <>
             <button
               onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 text-xs font-medium transition-colors"
+              className="flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
               style={{ color: accent }}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: expanded ? "rotate(90deg)" : undefined, transition: "transform 0.15s" }}>
@@ -387,26 +363,27 @@ function MessageBubble({ msg, dark }) {
 
 function MainApp({ onLogout, theme, onToggleTheme }) {
   const dark = theme === "dark";
-  const [chats, setChats] = useState(INITIAL_CHATS);
-  const [activeChatId, setActiveChatId] = useState("c1");
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [chatError, setChatError] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
-  const [showLeftSidebar, setShowLeftSidebar] = useState(true); // Tracks left sidebar state
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [editingChatId, setEditingChatId] = useState(null); // Tracks which chat is being renamed
-  const [editTitle, setEditTitle] = useState(""); // Tracks the input text
-  const [sampleIdx, setSampleIdx] = useState(0);
-  const [user, setUser] = useState({ name: "Loading...", email: "" });
+  const [editingChatId, setEditingChatId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [user, setUser] = useState({ name: "User", email: "" });
 
   const bottomRef = useRef(null);
   const profileRef = useRef(null);
   const fileInputRef = useRef(null);
   const greeting = getGreeting();
 
-  const activeChat = chats.find((c) => c.id === activeChatId) || { title: "New Chat", docs: [], messages: [] };
-  const currentDocs = activeChat.docs ? DOCS.filter(d => activeChat.docs.includes(d.id)) : [];
+  const activeChat = chats.find((c) => c.id === activeChatId) || { title: "New Chat", documents: [], messages: [] };
+  const currentDocs = activeChat.documents || [];
 
   const bg = dark ? "#1C1B19" : "#F4F3EE";
   const surface = dark ? "#2A2925" : "#FFFFFF";
@@ -418,10 +395,31 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   const btnText = dark ? "#1C1B19" : "#F4F3EE";
   const accent = "#7C9A6E";
 
+  useEffect(() => {
+    async function initApp() {
+      try {
+        const [profile, convs] = await Promise.all([
+          authFetch("/me"),
+          authFetch("/conversations"),
+        ]);
+        setUser(profile);
+        setChats(convs);
+
+        if (convs.length > 0) {
+          setActiveChatId(convs[0].id);
+        } else {
+          handleNewChatCreation();
+        }
+      } catch (err) {
+        console.error("Initialization failed:", err);
+      }
+    }
+    initApp();
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeChatId, loading]);
+  }, [activeChatId, loading, activeChat.messages]);
 
   useEffect(() => {
     function handler(e) {
@@ -432,74 +430,168 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Poll conversation documents if any are still parsing
   useEffect(() => {
-    async function fetchUserProfile() {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      
+    const hasParsing = currentDocs.some((d) => d.status === "parsing");
+    if (!hasParsing || !activeChatId) return;
+
+    const interval = setInterval(async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/me", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data);
-        }
+        const updatedConv = await authFetch(`/conversations/${activeChatId}`);
+        setChats((prev) =>
+          prev.map((c) => (c.id === activeChatId ? { ...c, documents: updatedConv.documents } : c))
+        );
+      } catch (e) {
+        console.error("Document status polling failed", e);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeChatId, currentDocs]);
+
+  // Load message history when switching chats
+  useEffect(() => {
+    async function loadMessages() {
+      if (!activeChatId) return;
+      try {
+        const [messages, conversationDetails] = await Promise.all([
+          authFetch(`/conversations/${activeChatId}/messages`),
+          authFetch(`/conversations/${activeChatId}`),
+        ]);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === activeChatId ? { ...c, messages, documents: conversationDetails.documents || [] } : c
+          )
+        );
       } catch (err) {
-        console.error("Failed to fetch user profile", err);
+        console.error("Failed to load messages:", err);
       }
     }
-    fetchUserProfile();
-  }, []);
+    loadMessages();
+  }, [activeChatId]);
 
-  const SAMPLE_RESPONSES = [
-    {
-      content: "Based on the filings, Apple's Services segment grew 13% YoY to $96.2B, now representing nearly 25% of total revenue. This shift toward recurring, high-margin revenue is a key strategic inflection.",
-      citations: [{ doc: "AAPL_10K_2024.pdf", page: 31, excerpt: "Services net sales were $96,169 million and $85,200 million for 2024 and 2023, respectively." }],
-    },
-    {
-      content: "NVIDIA's data center revenue reached $47.5B in Q3 FY2025, up 112% year-over-year. The Hopper GPU architecture continues to dominate AI training workloads.",
-      citations: [{ doc: "NVDA_10Q_Q3.pdf", page: 8, excerpt: "Data Center revenue was $30.8 billion for Q3, compared with $14.5 billion in the prior year quarter." }],
-    },
-  ];
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !activeChatId) return;
 
-  function send(text) {
-    if (!text.trim() || loading) return;
-    const userMsg = { id: Date.now().toString(), role: "user", content: text.trim() };
+    setUploading(true);
+    setChatError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/documents`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "File upload failed");
+      }
+
+      const uploadedDoc = await res.json();
+
+      const updatedConv = await authFetch(`/conversations/${activeChatId}/documents`, {
+        method: "POST",
+        body: JSON.stringify({ document_id: uploadedDoc.id }),
+      });
+
+      setChats((prev) =>
+        prev.map((c) => (c.id === activeChatId ? { ...c, documents: updatedConv.documents } : c))
+      );
+      setShowRightSidebar(true);
+    } catch (err) {
+      setChatError(err.message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function send(text) {
+    if (!text.trim() || loading || !activeChatId) return;
+
+    const userMessageContent = text.trim();
+    const tempUserId = "user-" + Date.now();
+    setChatError("");
+
+    const userMsg = { id: tempUserId, role: "user", content: userMessageContent };
     setChats((prev) =>
-      prev.map((c) => c.id === activeChatId ? { ...c, messages: [...c.messages, userMsg], preview: text.trim().slice(0, 40) + "…" } : c)
+      prev.map((c) =>
+        c.id === activeChatId
+          ? { ...c, messages: [...(c.messages || []), userMsg] }
+          : c
+      )
     );
+
     setInput("");
     setLoading(true);
-    const sample = SAMPLE_RESPONSES[sampleIdx % SAMPLE_RESPONSES.length];
-    setSampleIdx((i) => i + 1);
-    
-    setTimeout(() => {
-      const assistantMsg = { id: (Date.now() + 1).toString(), role: "assistant", ...sample };
-      setChats((prev) => prev.map((c) => c.id === activeChatId ? { ...c, messages: [...c.messages, assistantMsg] } : c));
+
+    try {
+      const assistantResponse = await authFetch(`/conversations/${activeChatId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ role: "user", content: userMessageContent }),
+      });
+
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === activeChatId
+            ? { ...c, messages: [...(c.messages || []).filter((m) => m.id !== tempUserId), userMsg, assistantResponse] }
+            : c
+        )
+      );
+    } catch (err) {
+      setChatError(err.message);
+      // Remove the optimistic user message if the request was blocked/failed
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === activeChatId
+            ? { ...c, messages: (c.messages || []).filter((m) => m.id !== tempUserId) }
+            : c
+        )
+      );
+    } finally {
       setLoading(false);
-    }, 1300);
+    }
+  }
+
+  async function handleNewChatCreation() {
+    try {
+      const newConv = await authFetch("/conversations", {
+        method: "POST",
+        body: JSON.stringify({ title: "New Chat" }),
+      });
+      setChats((prev) => [newConv, ...prev]);
+      setActiveChatId(newConv.id);
+      return newConv.id;
+    } catch (err) {
+      console.error("Failed to create conversation:", err);
+    }
   }
 
   function newChat() {
-    // Prevent creating a new chat if the current active one is already empty
-    if (activeChat && activeChat.messages.length === 0) {
-      return; 
+    if (activeChat && activeChat.messages && activeChat.messages.length === 0) {
+      return;
     }
-
-    const id = "c" + Date.now();
-    setChats((prev) => [{ id, title: "New chat", preview: "Ask anything…", time: "now", docs: [], messages: [] }, ...prev]);
-    setActiveChatId(id);
+    handleNewChatCreation();
   }
-  function handleDeleteChat(id, e) {
+
+  async function handleDeleteChat(id, e) {
     e.stopPropagation();
-    const remaining = chats.filter((c) => c.id !== id);
-    setChats(remaining);
-    if (activeChatId === id) {
-      if (remaining.length > 0) setActiveChatId(remaining[0].id);
-      else newChat();
+    try {
+      await authFetch(`/conversations/${id}`, { method: "DELETE" });
+      const remaining = chats.filter((c) => c.id !== id);
+      setChats(remaining);
+      if (activeChatId === id) {
+        if (remaining.length > 0) setActiveChatId(remaining[0].id);
+        else newChat();
+      }
+    } catch (err) {
+      console.error("Failed to delete chat:", err);
     }
     setOpenMenuId(null);
   }
@@ -507,52 +599,98 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
   function handleRenameChat(id, currentTitle, e) {
     e.stopPropagation();
     setEditingChatId(id);
-    setEditTitle(currentTitle);
+    setEditTitle(currentTitle || "New Chat");
     setOpenMenuId(null);
   }
 
-  function saveRename() {
+  async function saveRename() {
     if (editingChatId && editTitle.trim()) {
-      setChats((prev) => prev.map((c) => (c.id === editingChatId ? { ...c, title: editTitle.trim() } : c)));
+      try {
+        const updated = await authFetch(`/conversations/${editingChatId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ title: editTitle.trim() }),
+        });
+        setChats((prev) => prev.map((c) => (c.id === editingChatId ? { ...c, title: updated.title } : c)));
+      } catch (err) {
+        console.error("Failed to rename chat:", err);
+      }
     }
     setEditingChatId(null);
   }
 
-  function handlePinChat(id, e) {
+  async function handlePinChat(id, e) {
     e.stopPropagation();
-    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)));
+    const chatToPin = chats.find((c) => c.id === id);
+    if (!chatToPin) return;
+
+    try {
+      const updated = await authFetch(`/conversations/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ pinned: !chatToPin.pinned }),
+      });
+      setChats((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: updated.pinned } : c)));
+    } catch (err) {
+      console.error("Failed to pin chat:", err);
+    }
     setOpenMenuId(null);
   }
 
-  // Sort chats so pinned items appear at the top
   const sortedChats = [...chats].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   const chatInputForm = (
     <div className="w-full max-w-2xl mx-auto">
+      {chatError && (
+        <div className="mb-3 p-2.5 text-xs rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-between">
+          <span>{chatError}</span>
+          <button onClick={() => setChatError("")} className="font-bold ml-2 cursor-pointer">×</button>
+        </div>
+      )}
       <div className="flex flex-col border rounded-xl transition-colors shadow-sm" style={{ borderColor: border, background: surface }}>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-          placeholder="Ask about revenue, risk factors, guidance…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send(input);
+            }
+          }}
+          placeholder={currentDocs.length === 0 ? "Upload a document first to start asking questions..." : "Ask about revenue, risk factors, guidance…"}
           rows={1}
           className="flex-1 bg-transparent px-4 pt-4 pb-2 text-sm outline-none resize-none leading-relaxed w-full"
           style={{ color: textMain, maxHeight: 120 }}
         />
         <div className="flex items-center justify-between px-3 pb-2.5">
-          <div className="flex items-center gap-1">
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80" style={{ color: textMuted, background: bg }} title="Upload File">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80 cursor-pointer disabled:opacity-50"
+              style={{ color: textMuted, background: bg }}
+              title="Upload PDF Document"
+            >
+              {uploading ? (
+                <span className="w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              )}
             </button>
+            {uploading && <span className="text-[11px] font-mono animate-pulse" style={{ color: textMuted }}>Uploading & parsing...</span>}
           </div>
           <button
             onClick={() => send(input)}
-            disabled={!input.trim() || loading}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-25"
+            disabled={!input.trim() || loading || uploading}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-25 cursor-pointer"
             style={{ background: btnBg }}
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -566,10 +704,10 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
   return (
     <div className="flex h-full font-sans transition-colors duration-200" style={{ background: bg }}>
-      <aside className={`flex flex-col border-r shrink-0 transition-all duration-200 ${showLeftSidebar ? 'w-60' : 'w-16'}`} style={{ background: sidebarBg, borderColor: border }}>
+      <aside className={`flex flex-col border-r shrink-0 transition-all duration-200 ${showLeftSidebar ? "w-60" : "w-16"}`} style={{ background: sidebarBg, borderColor: border }}>
         <div className="flex items-center justify-between px-3 py-4 border-b" style={{ borderColor: border }}>
           {showLeftSidebar ? (
-            <button onClick={newChat} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left truncate min-w-0">
+            <button onClick={newChat} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left truncate min-w-0 cursor-pointer">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: textMain }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <circle cx="6" cy="6" r="2.5" fill={sidebarBg} />
@@ -579,7 +717,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               <span className="font-display font-bold text-sm truncate" style={{ color: textMain }}>FinSage</span>
             </button>
           ) : (
-            <button onClick={() => setShowLeftSidebar(true)} className="w-full flex justify-center" title="Expand Sidebar">
+            <button onClick={() => setShowLeftSidebar(true)} className="w-full flex justify-center cursor-pointer" title="Expand Sidebar">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <circle cx="6" cy="6" r="2.5" fill={sidebarBg} />
@@ -593,7 +731,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={newChat}
-                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                 style={{ background: surface, color: textMuted, border: `1px solid ${border}` }}
                 title="New Chat"
               >
@@ -603,7 +741,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               </button>
               <button
                 onClick={() => setShowLeftSidebar(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                 style={{ background: surface, color: textMuted, border: `1px solid ${border}` }}
                 title="Collapse Sidebar"
               >
@@ -625,11 +763,11 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                 <button
                   key={c.id}
                   onClick={() => setActiveChatId(c.id)}
-                  className={`w-10 h-10 mx-auto my-1 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${active ? 'shadow-sm' : ''}`}
+                  className={`w-10 h-10 mx-auto my-1 rounded-lg flex items-center justify-center text-xs font-bold transition-colors cursor-pointer ${active ? "shadow-sm" : ""}`}
                   style={{ background: active ? surface : "transparent", color: active ? textMain : textMuted }}
-                  title={c.title}
+                  title={c.title || "Chat"}
                 >
-                  {c.title.charAt(0)}
+                  {(c.title || "C").charAt(0)}
                 </button>
               );
             }
@@ -637,7 +775,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
               <div key={c.id} className="relative chat-menu-container group mx-1 mb-0.5" style={{ width: "calc(100% - 8px)" }}>
                 <button
                   onClick={() => setActiveChatId(c.id)}
-                  className="w-full text-left px-3 py-2.5 transition-colors rounded-lg flex items-center justify-between"
+                  className="w-full text-left px-3 py-2.5 transition-colors rounded-lg flex items-center justify-between cursor-pointer"
                   style={{
                     background: active ? surface : "transparent",
                     color: active ? textMain : textMuted,
@@ -656,31 +794,32 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                             if (e.key === "Escape") setEditingChatId(null);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-xs font-semibold bg-transparent outline-none border-b border-gray-400 w-full mr-2 truncate pb-0.5"
+                          className="text-xs font-semibold bg-transparent outline-none border-b border-stone-400 w-full mr-2 truncate pb-0.5"
                           style={{ color: textMain }}
                         />
                       ) : (
                         <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>
-                          {c.title}
+                          {c.title || "New Chat"}
                         </span>
                       )}
                       <span className="text-[10px] font-mono shrink-0 ml-2 flex items-center gap-1" style={{ color: textMuted }}>
                         {c.pinned && (
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                         )}
-                        {c.time}
                       </span>
                     </div>
-                    <p className="text-[11px] truncate" style={{ color: textMuted }}>{c.preview}</p>
+                    <p className="text-[11px] truncate" style={{ color: textMuted }}>
+                      {c.documents?.length ? `${c.documents.length} document(s)` : "No documents attached"}
+                    </p>
                   </div>
                 </button>
-                
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setOpenMenuId(openMenuId === c.id ? null : c.id);
                   }}
-                  className={`absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${openMenuId === c.id ? 'opacity-100' : ''}`}
+                  className={`absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${openMenuId === c.id ? "opacity-100" : ""}`}
                   style={{ color: textMuted, background: active ? surface : bg }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -690,15 +829,15 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
                 {openMenuId === c.id && (
                   <div className="absolute left-1/2 top-8 w-40 rounded-lg shadow-lg border py-1.5 z-50 text-xs" style={{ background: surface, borderColor: border }}>
-                    <button onClick={(e) => handlePinChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                    <button onClick={(e) => handlePinChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5 cursor-pointer" style={{ color: textMain }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                       {c.pinned ? "Unpin" : "Pin"}
                     </button>
-                    <button onClick={(e) => handleRenameChat(c.id, c.title, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+                    <button onClick={(e) => handleRenameChat(c.id, c.title, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5 cursor-pointer" style={{ color: textMain }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                       Rename
                     </button>
-                    <button onClick={(e) => handleDeleteChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: "#EF4444" }}>
+                    <button onClick={(e) => handleDeleteChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5 cursor-pointer" style={{ color: "#EF4444" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       Delete
                     </button>
@@ -712,7 +851,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
         <div className="px-3 py-3 border-t relative" style={{ borderColor: border }} ref={profileRef}>
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors hover:opacity-80"
+            className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors hover:opacity-80 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "#888073" }}>
               {user.name ? user.name.charAt(0).toUpperCase() : "U"}
@@ -720,25 +859,28 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
             {showLeftSidebar && (
               <>
                 <div className="flex-1 min-w-0 text-left pl-1">
-                    <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>{user.name}</p>
-                    <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>{user.email}</p>
+                  <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>{user.name}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>{user.email}</p>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted }} className="shrink-0">
-                    <polyline points="6 9 12 15 18 9"></polyline>
+                  <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </>
             )}
           </button>
-          
+
           {profileOpen && (
-            <div className={`absolute bottom-full mb-2 rounded-xl shadow-lg border py-1 z-50 ${showLeftSidebar ? 'left-2 right-2' : 'left-0 w-48'}`} style={{ background: surface, borderColor: border }}>
-              <button onClick={onToggleTheme} className="w-full text-left px-3 py-2 text-xs" style={{ color: textMuted }}>
+            <div className={`absolute bottom-full mb-2 rounded-xl shadow-lg border py-1 z-50 ${showLeftSidebar ? "left-2 right-2" : "left-0 w-48"}`} style={{ background: surface, borderColor: border }}>
+              <button onClick={onToggleTheme} className="w-full text-left px-3 py-2 text-xs cursor-pointer" style={{ color: textMuted }}>
                 {dark ? "Light mode" : "Dark mode"}
               </button>
-              <button onClick={() => {
-                localStorage.removeItem("token");
-                onLogout();
-              }} className="w-full text-left px-3 py-2 text-xs text-red-500">
+              <button
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  onLogout();
+                }}
+                className="w-full text-left px-3 py-2 text-xs text-red-500 cursor-pointer"
+              >
                 Log out
               </button>
             </div>
@@ -748,30 +890,30 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-6 py-3 shrink-0" style={{ background: bg }}>
-            <div>
-                <p className="font-semibold text-sm" style={{ color: textMain }}>{activeChat.title}</p>
-                <p className="text-xs" style={{ color: textMuted }}>{currentDocs.length > 0 ? `${currentDocs.length} docs included` : "All documents"}</p>
-            </div>
-            <div className="flex items-center gap-2">
-                <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-                {!showRightSidebar && (
-                <button 
-                    onClick={() => setShowRightSidebar(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:opacity-80 ml-2"
-                    style={{ color: textMuted, background: surface, border: `1px solid ${border}` }}
-                    title="Show Sidebar"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="15" y1="3" x2="15" y2="21"></line>
-                    </svg>
-                </button>
-                )}
-            </div>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: textMain }}>{activeChat.title || "New Chat"}</p>
+            <p className="text-xs" style={{ color: textMuted }}>
+              {currentDocs.length > 0 ? `${currentDocs.length} attached document(s)` : "No documents attached"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            <button
+              onClick={() => setShowRightSidebar(!showRightSidebar)}
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:opacity-80 ml-2 cursor-pointer"
+              style={{ color: textMuted, background: surface, border: `1px solid ${border}` }}
+              title="Toggle Document Library"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: bg }}>
-          {activeChat.messages.length === 0 ? (
+          {!activeChat.messages || activeChat.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <div className="mb-8">
                 <p className="text-4xl mb-3">{greeting.icon}</p>
@@ -787,7 +929,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
                 <div className="flex gap-3 mb-4">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-sm" style={{ background: surface, border: `1px solid ${border}`, color: textMuted }}>✦</div>
                   <div className="flex items-center gap-1.5 text-xs" style={{ color: textMuted }}>
-                    <span>Retrieving sources</span>
+                    <span>Retrieving sources and synthesizing</span>
                     <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: accent }} />
                   </div>
                 </div>
@@ -797,7 +939,7 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
           )}
         </div>
 
-        {activeChat.messages.length > 0 && (
+        {activeChat.messages && activeChat.messages.length > 0 && (
           <div className="px-6 py-4 shrink-0" style={{ background: bg }}>
             {chatInputForm}
           </div>
@@ -805,37 +947,50 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
       </div>
 
       {showRightSidebar && (
-        <aside className="w-56 flex flex-col border-l shrink-0" style={{ background: sidebarBg, borderColor: border }}>
+        <aside className="w-64 flex flex-col border-l shrink-0" style={{ background: sidebarBg, borderColor: border }}>
           <div className="px-4 py-4 border-b" style={{ borderColor: border }}>
             <div className="flex items-center justify-between">
-                <p className="font-semibold text-xs" style={{ color: textMain }}>Document Library</p>
-                <div className="flex items-center gap-2">
+              <p className="font-semibold text-xs" style={{ color: textMain }}>Conversation Documents</p>
+              <div className="flex items-center gap-2">
                 <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: surface, color: textMuted }}>{currentDocs.length}</span>
-                <button 
-                    onClick={() => setShowRightSidebar(false)}
-                    className="flex items-center justify-center transition-colors hover:opacity-80"
-                    style={{ color: textMuted }}
-                    title="Hide Sidebar"
+                <button
+                  onClick={() => setShowRightSidebar(false)}
+                  className="flex items-center justify-center transition-colors hover:opacity-80 cursor-pointer"
+                  style={{ color: textMuted }}
+                  title="Hide Sidebar"
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="15" y1="3" x2="15" y2="21"></line>
-                    </svg>
+                  </svg>
                 </button>
-                </div>
-             </div>
+              </div>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto py-2">
             {currentDocs.length === 0 ? (
-              <p className="text-xs text-center mt-4" style={{ color: textMuted }}>No documents included.</p>
+              <div className="px-4 py-8 text-center">
+                <p className="text-xs" style={{ color: textMuted }}>No documents attached to this chat.</p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-3 text-xs font-medium underline cursor-pointer"
+                  style={{ color: textMain }}
+                >
+                  Upload PDF
+                </button>
+              </div>
             ) : (
               currentDocs.map((doc) => (
-                <div key={doc.id} className="w-full text-left px-3 py-2.5 mb-0.5">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className={`text-[9px] font-mono px-1 py-0.5 rounded border ${typeColors[doc.type] || ""}`}>{doc.type}</span>
+                <div key={doc.id} className="w-full text-left px-4 py-3 border-b" style={{ borderColor: border }}>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border capitalize ${statusColors[doc.status] || ""}`}>
+                      {doc.status}
+                    </span>
+                    <span className="text-[10px] font-mono" style={{ color: textMuted }}>
+                      {new Date(doc.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                  <p className="text-[11px] font-medium leading-tight truncate" style={{ color: textMain }}>{doc.name}</p>
-                  <p className="text-[10px] mt-0.5 font-mono" style={{ color: textMuted }}>{doc.size} · {doc.date}</p>
+                  <p className="text-xs font-medium leading-snug break-all" style={{ color: textMain }}>{doc.filename}</p>
                 </div>
               ))
             )}
@@ -849,7 +1004,14 @@ function MainApp({ onLogout, theme, onToggleTheme }) {
 export default function App() {
   const [page, setPage] = useState("landing");
   const [theme, setTheme] = useState("light");
-  
+
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (token) {
+  //     setPage("app");
+  //   }
+  // }, []);
+
   const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
   return (
@@ -860,3 +1022,968 @@ export default function App() {
     </div>
   );
 }
+
+// import { useState, useRef, useEffect } from "react";
+
+// const DOCS = [
+//   { id: "d1", name: "AAPL_10K_2024.pdf", type: "10-K", size: "4.2 MB", date: "Jan 12" },
+//   { id: "d2", name: "NVDA_10Q_Q3.pdf", type: "10-Q", size: "2.8 MB", date: "Jan 9" },
+//   { id: "d3", name: "MSFT_Earnings_Q4.pdf", type: "Transcript", size: "1.1 MB", date: "Jan 5" },
+//   { id: "d4", name: "GOOGL_Proxy_2024.pdf", type: "Proxy", size: "3.4 MB", date: "Dec 28" },
+//   { id: "d5", name: "JPM_8K_Jan25.pdf", type: "8-K", size: "0.6 MB", date: "Dec 20" },
+// ];
+
+// const INITIAL_CHATS = [
+//   {
+//     id: "c1",
+//     title: "Apple Revenue Analysis",
+//     preview: "Total net sales of $391B…",
+//     time: "2h ago",
+//     docs: ["d1"], // Included documents for this specific chat
+//     messages: [
+//       { id: "m1", role: "user", content: "What is Apple's revenue growth for FY2024?" },
+//       {
+//         id: "m2",
+//         role: "assistant",
+//         content:
+//           "Apple reported total net sales of $391.0 billion for FY2024, a 2% increase year-over-year. Services revenue was the standout, growing 13% to $96.2 billion — now 24.6% of total revenue. iPhone revenue dipped slightly by 0.4% to $201.2 billion.",
+//         citations: [
+//           { doc: "AAPL_10K_2024.pdf", page: 23, excerpt: "Net sales increased 2 percent or $7.7 billion during 2024 compared to 2023, driven primarily by higher net sales of Services and Mac." },
+//         ],
+//       },
+//     ],
+//   },
+//   {
+//     id: "c2",
+//     title: "NVIDIA Supply Chain",
+//     preview: "TSMC CoWoS bottleneck…",
+//     time: "Yesterday",
+//     docs: ["d2"],
+//     messages: [
+//       { id: "m3", role: "user", content: "How is NVIDIA managing its supply chain risks?" },
+//       {
+//         id: "m4",
+//         role: "assistant",
+//         content:
+//           "NVIDIA disclosed significant supply concentration in TSMC for wafer manufacturing. CoWoS advanced packaging is identified as a near-term bottleneck. Despite this, gross margins expanded to 74.6% in Q3, reflecting strong pricing power.",
+//         citations: [
+//           { doc: "NVDA_10Q_Q3.pdf", page: 14, excerpt: "We rely on TSMC to manufacture our products. The inability to procure sufficient CoWoS packaging has in the past limited our ability to meet customer demand." },
+//         ],
+//       },
+//     ],
+//   },
+//   {
+//     id: "c3",
+//     title: "MSFT Cloud Growth",
+//     preview: "Azure grew 33% YoY…",
+//     time: "2 days ago",
+//     docs: ["d3"],
+//     messages: [],
+//   },
+// ];
+
+// const SUGGESTED = [
+//   "What were Apple's key risk factors?",
+//   "Compare NVDA and MSFT data center revenue",
+//   "Summarize JPMorgan's Q1 outlook",
+//   "What is Google's advertising trend?",
+// ];
+
+// const typeColors = {
+//   "10-K": "bg-stone-100 text-stone-700 border-stone-300",
+//   "10-Q": "bg-amber-50 text-amber-700 border-amber-200",
+//   Transcript: "bg-teal-50 text-teal-700 border-teal-200",
+//   Proxy: "bg-rose-50 text-rose-700 border-rose-200",
+//   "8-K": "bg-stone-200 text-stone-800 border-stone-300",
+// };
+
+// // auth fetch helper
+// // Every authenticated call automatically sends the Bearer token without repetitive boilerplate.
+
+// // If a token expires or becomes invalid (HTTP 401), the app clears the session and triggers a re-login.
+
+// // Any backend validation or database errors are extracted and thrown with proper detail.
+// const API_BASE_URL = "http://127.0.0.1:8000";
+
+// async function authFetch(endpoint, options = {}) {
+//   const token = localStorage.getItem("token");
+//   const headers = {
+//     "Content-Type": "application/json",
+//     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+//     ...options.headers,
+//   };
+
+//   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+//     ...options,
+//     headers,
+//   });
+
+//   if (response.status === 401) {
+//     localStorage.removeItem("token");
+//     window.location.reload();
+//     throw new Error("Session expired. Please log in again.");
+//   }
+
+//   if (!response.ok) {
+//     const errorData = await response.json().catch(() => ({}));
+//     throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+//   }
+
+//   return response.json();
+// }
+
+// function getGreeting() {
+//   const h = new Date().getHours();
+//   if (h < 5) return { label: "Night Owl!!"};
+//   if (h < 9) return { label: "Early Bird!!" };
+//   if (h < 12) return { label: "Good Morning", icon: "☀️"};
+//   if (h < 17) return { label: "Good Afternoon"};
+//   if (h < 21) return { label: "Good Evening"};
+//   return { label: "Night Owl"};
+// }
+
+// function ThemeToggle({ theme, onToggle }) {
+//   return (
+//     <button
+//       onClick={onToggle}
+//       className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+//       style={{
+//         background: theme === "light" ? "#EBEAE4" : "#2A2925",
+//         color: theme === "light" ? "#1C1B19" : "#B1ADA1",
+//       }}
+//       title={theme === "light" ? "Switch to dark" : "Switch to light"}
+//     >
+//       {theme === "light" ? (
+//         <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+//           <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.2 3.2l1.06 1.06M10.74 10.74l1.06 1.06M3.2 11.8l1.06-1.06M10.74 4.26l1.06-1.06M7.5 5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+//         </svg>
+//       ) : (
+//         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+//         </svg>
+//       )}
+//     </button>
+//   );
+// }
+
+// function LandingPage({ onStart, theme, onToggleTheme }) {
+//   const dark = theme === "dark";
+//   const bg = dark ? "#1C1B19" : "#F4F3EE"; 
+//   const surface = dark ? "#2A2925" : "#FFFFFF";
+//   const border = dark ? "#38342E" : "#B1ADA1";
+//   const textMain = dark ? "#F4F3EE" : "#1C1B19";
+//   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+//   const btnBg = dark ? "#F4F3EE" : "#1C1B19";
+//   const btnText = dark ? "#1C1B19" : "#F4F3EE";
+//   const accent = "#7C9A6E";
+
+//   return (
+//     <div className="min-h-full flex flex-col font-sans transition-colors duration-200" style={{ background: bg, color: textMain }}>
+//       <nav className="flex items-center justify-between px-10 py-5 border-b" style={{ borderColor: border }}>
+//         <div className="flex items-center gap-2.5">
+//           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
+//             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+//               <circle cx="7" cy="7" r="3" fill={bg} />
+//               <path d="M7 1v2M7 11v2M1 7h2M11 7h2" stroke={bg} strokeWidth="1.3" strokeLinecap="round" />
+//             </svg>
+//           </div>
+//           <span className="font-display font-bold text-lg tracking-tight" style={{ color: textMain }}>FinSage</span>
+//         </div>
+//         <div className="flex items-center gap-3">
+//           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+//           <button onClick={onStart} className="text-sm font-medium transition-colors" style={{ color: textMuted }}>
+//             Sign in
+//           </button>
+//         </div>
+//       </nav>
+
+//       <main className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+//         <h1 className="font-display text-5xl font-bold tracking-tight leading-tight max-w-2xl mb-6" style={{ color: textMain }}>
+//           Ask questions across<br />
+//           <span style={{ color: accent }}>every filing you own.</span>
+//         </h1>
+//         <p className="text-lg max-w-md mb-10 leading-relaxed" style={{ color: textMuted }}>
+//           Upload 10-Ks, earnings transcripts, and proxy statements. Get precise, cited answers from your entire document library in seconds.
+//         </p>
+//         <button onClick={onStart} className="font-semibold px-8 py-3.5 rounded-xl text-sm transition-all hover:opacity-90 shadow-sm" style={{ background: btnBg, color: btnText }}>
+//           Get Started
+//         </button>
+
+//         <div className="grid grid-cols-3 gap-4 mt-10 max-w-2xl w-full">
+//           {[
+//             {title: "Multi-document RAG", desc: "Query across 10-Ks, 10-Qs, and transcripts simultaneously." },
+//             {title: "Cited answers", desc: "Every response references the exact page and excerpt." },
+//             {title: "Instant retrieval", desc: "Semantic search over millions of words in under 2 seconds." },
+//           ].map((f) => (
+//             <div key={f.title} className="rounded-xl p-5 text-left border" style={{ background: surface, borderColor: border }}>
+//               <div className="text-2xl mb-3">{f.icon}</div>
+//               <p className="font-semibold text-sm mb-1" style={{ color: textMain }}>{f.title}</p>
+//               <p className="text-xs leading-relaxed" style={{ color: textMuted }}>{f.desc}</p>
+//             </div>
+//           ))}
+//         </div>
+//       </main>
+//     </div>
+//   );
+// }
+
+// function AuthPage({ onAuth, onBack, theme, onToggleTheme }) {
+//   const [tab, setTab] = useState("login");
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [name, setName] = useState("");
+//   const [error, setError] = useState(""); // Added error handling state
+  
+//   const dark = theme === "dark";
+//   const bg = dark ? "#1C1B19" : "#F4F3EE";
+//   const surface = dark ? "#2A2925" : "#FFFFFF";
+//   const border = dark ? "#38342E" : "#B1ADA1";
+//   const textMain = dark ? "#F4F3EE" : "#1C1B19";
+//   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+//   const inputBg = dark ? "#1C1B19" : "#F4F3EE";
+//   const btnBg = dark ? "#F4F3EE" : "#1C1B19";
+//   const btnText = dark ? "#1C1B19" : "#FFFFFF"; 
+
+//   // Handle API connection for both Login and Signup
+//   async function handleSubmit() {
+//     setError("");
+//     try {
+//       if (tab === "signup") {
+//         // 1. Signup Request
+//         const res = await fetch("http://127.0.0.1:8000/signup", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({ name, email, password }),
+//         });
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.detail || "Signup failed");
+        
+//         // Automatically switch to login tab or sign in directly after successful signup
+//         setTab("login");
+//       } else {
+//         // 2. Login Request (FastAPI OAuth2 expects URL-encoded form data)
+//         const formData = new URLSearchParams();
+//         formData.append("username", email);
+//         formData.append("password", password);
+
+//         const res = await fetch("http://127.0.0.1:8000/login", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/x-www-form-urlencoded" },
+//           body: formData,
+//         });
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.detail || "Login failed");
+
+//         // Save token and enter main app
+//         localStorage.setItem("token", data.access_token);
+//         onAuth();
+//       }
+//     } catch (err) {
+//       setError(err.message);
+//     }
+//   }
+
+//   return (
+//     <div className="min-h-full flex flex-col items-center justify-center font-sans transition-colors duration-200" style={{ background: bg }}>
+      
+//       <div className="absolute top-5 left-6">
+//         <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: textMuted }}>
+//           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//             <line x1="19" y1="12" x2="5" y2="12"></line>
+//             <polyline points="12 19 5 12 12 5"></polyline>
+//           </svg>
+//           Back
+//         </button>
+//       </div>
+//       <div className="absolute top-5 right-6">
+//         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+//       </div>
+
+//       <div className="w-full max-w-md rounded-2xl shadow-sm p-8 border relative z-10" style={{ background: surface, borderColor: border }}>
+//         <div className="flex items-center gap-2 mb-8">
+//           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
+//             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+//               <circle cx="7" cy="7" r="3" fill={surface} />
+//               <path d="M7 1v2M7 11v2M1 7h2M11 7h2" stroke={surface} strokeWidth="1.3" strokeLinecap="round" />
+//             </svg>
+//           </div>
+//           <span className="font-display font-bold text-lg tracking-tight" style={{ color: textMain }}>FinSage</span>
+//         </div>
+
+//         {error && (
+//           <div className="mb-4 p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200">
+//             {error}
+//           </div>
+//         )}
+
+//         <div className="space-y-4">
+//           {tab === "signup" && (
+//             <div>
+//               <label className="block text-xs font-medium mb-1.5" style={{ color: textMuted }}>Full name</label>
+//               <input
+//                 value={name}
+//                 onChange={(e) => setName(e.target.value)}
+//                 placeholder="Alex Chen"
+//                 className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-all"
+//                 style={{ background: inputBg, borderColor: border, color: textMain }}
+//               />
+//             </div>
+//           )}
+//           <div>
+//             <label className="block text-xs font-medium mb-1.5" style={{ color: textMuted }}>Email</label>
+//             <input
+//               value={email}
+//               onChange={(e) => setEmail(e.target.value)}
+//               placeholder="alex@fund.com"
+//               type="email"
+//               className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-all"
+//               style={{ background: inputBg, borderColor: border, color: textMain }}
+//             />
+//           </div>
+//           <div>
+//             <label className="block text-xs font-medium mb-1.5" style={{ color: textMuted }}>Password</label>
+//             <input
+//               value={password}
+//               onChange={(e) => setPassword(e.target.value)}
+//               placeholder="••••••••"
+//               type="password"
+//               className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-all"
+//               style={{ background: inputBg, borderColor: border, color: textMain }}
+//             />
+//           </div>
+//           <button
+//             onClick={handleSubmit}
+//             className="w-full font-semibold py-2.5 rounded-lg text-sm transition-all hover:opacity-90 mt-2"
+//             style={{ background: btnBg, color: btnText }}
+//           >
+//             {tab === "login" ? "Sign in" : "Create account"}
+//           </button>
+//         </div>
+        
+//         {tab === "login" ? (
+//           <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
+//             Don't have an account? <button onClick={() => setTab("signup")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign up</button>
+//           </p>
+//         ) : (
+//           <p className="text-xs text-center mt-6" style={{ color: textMuted }}>
+//             Already have an account? <button onClick={() => setTab("login")} className="underline font-medium ml-1" style={{ color: textMain }}>Sign in</button>
+//           </p>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+// function CitationCard({ citation, dark }) {
+//   const surface = dark ? "#2A2925" : "#FFFFFF";
+//   const border = dark ? "#38342E" : "#B1ADA1";
+//   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+//   const docType = citation.doc_type || "DOC";
+
+//   return (
+//     <div className="rounded-lg p-3 border text-xs mt-2" style={{ background: surface, borderColor: border }}>
+//       <div className="flex items-center gap-2 mb-2">
+//         <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${typeColors[docType] || ""}`}>{docType}</span>
+//         <span className="font-mono" style={{ color: textMuted }}>{citation.source_filename} · p.{citation.page_number}</span>
+//       </div>
+//       {citation.section && (
+//         <p className="text-[11px] font-semibold mb-1" style={{ color: textMuted }}>
+//           Section: {citation.section}
+//         </p>
+//       )}
+//     </div>
+//   );
+// }
+
+// function MessageBubble({ msg, dark }) {
+//   const [expanded, setExpanded] = useState(false);
+//   const textMain = dark ? "#F4F3EE" : "#1C1B19";
+//   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+//   const surface = dark ? "#2A2925" : "#FFFFFF";
+//   const border = dark ? "#38342E" : "#B1ADA1";
+//   const accent = "#7C9A6E";
+
+//   if (msg.role === "user") {
+//     return (
+//       <div className="flex justify-end mb-4">
+//         <div
+//           className="max-w-[65%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed"
+//           style={{ background: dark ? "#38342E" : "#1C1B19", color: dark ? "#F4F3EE" : "#FFFFFF" }}
+//         >
+//           {msg.content}
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="flex gap-3 mb-5">
+//       <div
+//         className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-sm"
+//         style={{ background: surface, border: `1px solid ${border}`, color: textMuted }}
+//       >
+//         ✦
+//       </div>
+//       <div className="flex-1 min-w-0">
+//         <p className="text-sm leading-relaxed mb-2" style={{ color: textMain }}>{msg.content}</p>
+//         {msg.citations && msg.citations.length > 0 && (
+//           <>
+//             <button
+//               onClick={() => setExpanded(!expanded)}
+//               className="flex items-center gap-1 text-xs font-medium transition-colors"
+//               style={{ color: accent }}
+//             >
+//               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: expanded ? "rotate(90deg)" : undefined, transition: "transform 0.15s" }}>
+//                 <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+//               </svg>
+//               {msg.citations.length} source{msg.citations.length > 1 ? "s" : ""}
+//             </button>
+//             {expanded && msg.citations.map((c, i) => <CitationCard key={i} citation={c} dark={dark} />)}
+//           </>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+// function MainApp({ onLogout, theme, onToggleTheme }) {
+//   const dark = theme === "dark";
+//   const [chats, setChats] = useState([]);
+//   const [activeChatId, setActiveChatId] = useState(null);
+//   const [input, setInput] = useState("");
+//   const [loading, setLoading] = useState(false);
+//   const [profileOpen, setProfileOpen] = useState(false);
+//   const [showRightSidebar, setShowRightSidebar] = useState(false);
+//   const [showLeftSidebar, setShowLeftSidebar] = useState(true); // Tracks left sidebar state
+//   const [openMenuId, setOpenMenuId] = useState(null);
+//   const [editingChatId, setEditingChatId] = useState(null); // Tracks which chat is being renamed
+//   const [editTitle, setEditTitle] = useState(""); // Tracks the input text
+//   const [sampleIdx, setSampleIdx] = useState(0);
+//   const [user, setUser] = useState({ name: "Loading...", email: "" });
+
+//   const bottomRef = useRef(null);
+//   const profileRef = useRef(null);
+//   const fileInputRef = useRef(null);
+//   const greeting = getGreeting();
+
+//   const activeChat = chats.find((c) => c.id === activeChatId) || { title: "New Chat", docs: [], messages: [] };
+//   const currentDocs = activeChat.docs ? DOCS.filter(d => activeChat.docs.includes(d.id)) : [];
+
+//   const bg = dark ? "#1C1B19" : "#F4F3EE";
+//   const surface = dark ? "#2A2925" : "#FFFFFF";
+//   const border = dark ? "#38342E" : "#B1ADA1";
+//   const textMain = dark ? "#F4F3EE" : "#1C1B19";
+//   const textMuted = dark ? "#B1ADA1" : "#6B6660";
+//   const sidebarBg = dark ? "#1E1D1A" : "#F4F3EE";
+//   const btnBg = dark ? "#F4F3EE" : "#1C1B19";
+//   const btnText = dark ? "#1C1B19" : "#F4F3EE";
+//   const accent = "#7C9A6E";
+
+//   useEffect(() => {
+//     async function loadConversations() {
+//       try {
+//         const data = await authFetch("/conversations");
+//         setChats(data);
+//         if (data.length > 0) {
+//           setActiveChatId(data[0].id);
+//         } else {
+//           handleNewChatCreation();
+//         }
+//       } catch (err) {
+//         console.error("Failed to load conversations:", err);
+//       }
+//     }
+//     loadConversations();
+//   }, []);
+
+//   useEffect(() => {
+//     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+//   }, [activeChatId, loading]);
+
+//   useEffect(() => {
+//     function handler(e) {
+//       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+//       if (!e.target.closest('.chat-menu-container')) setOpenMenuId(null);
+//     }
+//     document.addEventListener("mousedown", handler);
+//     return () => document.removeEventListener("mousedown", handler);
+//   }, []);
+
+//   useEffect(() => {
+//     async function fetchUserProfile() {
+//       const token = localStorage.getItem("token");
+//       if (!token) return;
+      
+//       try {
+//         const res = await fetch("http://127.0.0.1:8000/me", {
+//           headers: {
+//             "Authorization": `Bearer ${token}`
+//           }
+//         });
+//         if (res.ok) {
+//           const data = await res.json();
+//           setUser(data);
+//         }
+//       } catch (err) {
+//         console.error("Failed to fetch user profile", err);
+//       }
+//     }
+//     fetchUserProfile();
+//   }, []);
+
+//   // Load messages for the active chat whenever activeChatId changes
+//   useEffect(() => {
+//     async function loadMessages() {
+//       if (!activeChatId) return;
+//       try {
+//         const messages = await authFetch(`/conversations/${activeChatId}/messages`);
+//         setChats((prev) =>
+//           prev.map((c) => (c.id === activeChatId ? { ...c, messages } : c))
+//         );
+//       } catch (err) {
+//         console.error("Failed to load messages:", err);
+//       }
+//     }
+//     loadMessages();
+//   }, [activeChatId]);
+
+//   const SAMPLE_RESPONSES = [
+//     {
+//       content: "Based on the filings, Apple's Services segment grew 13% YoY to $96.2B, now representing nearly 25% of total revenue. This shift toward recurring, high-margin revenue is a key strategic inflection.",
+//       citations: [{ doc: "AAPL_10K_2024.pdf", page: 31, excerpt: "Services net sales were $96,169 million and $85,200 million for 2024 and 2023, respectively." }],
+//     },
+//     {
+//       content: "NVIDIA's data center revenue reached $47.5B in Q3 FY2025, up 112% year-over-year. The Hopper GPU architecture continues to dominate AI training workloads.",
+//       citations: [{ doc: "NVDA_10Q_Q3.pdf", page: 8, excerpt: "Data Center revenue was $30.8 billion for Q3, compared with $14.5 billion in the prior year quarter." }],
+//     },
+//   ];
+
+//   async function send(text) {
+//     if (!text.trim() || loading || !activeChatId) return;
+
+//     const userMessageContent = text.trim();
+//     const tempUserId = "user-" + Date.now();
+    
+//     // 1. Optimistically append user message to UI
+//     const userMsg = { id: tempUserId, role: "user", content: userMessageContent };
+//     setChats((prev) =>
+//       prev.map((c) => 
+//         c.id === activeChatId 
+//           ? { ...c, messages: [...c.messages, userMsg], preview: userMessageContent.slice(0, 40) + "…" } 
+//           : c
+//       )
+//     );
+    
+//     setInput("");
+//     setLoading(true);
+
+//     try {
+//       // 2. Call backend endpoint which triggers the RAG pipeline
+//       const assistantResponse = await authFetch(`/conversations/${activeChatId}/messages`, {
+//         method: "POST",
+//         body: JSON.stringify({ role: "user", content: userMessageContent }),
+//       });
+
+//       // 3. Append the real assistant response and citations returned from the database
+//       setChats((prev) =>
+//         prev.map((c) =>
+//           c.id === activeChatId
+//             ? { ...c, messages: [...c.messages, assistantResponse] }
+//             : c
+//         )
+//       );
+//     } catch (err) {
+//       console.error("Failed to send message:", err);
+//       // Optionally show error to user in UI
+//     } finally {
+//       setLoading(false);
+//     }
+//   }
+
+//   async function handleNewChatCreation() {
+//     try {
+//       const newConv = await authFetch("/conversations", {
+//         method: "POST",
+//         body: JSON.stringify({ title: "New Chat" }),
+//       });
+//       setChats((prev) => [newConv, ...prev]);
+//       setActiveChatId(newConv.id);
+//       return newConv.id;
+//     } catch (err) {
+//       console.error("Failed to create conversation:", err);
+//     }
+//   }
+
+//   function newChat() {
+//     if (activeChat && activeChat.messages && activeChat.messages.length === 0) {
+//       return; 
+//     }
+//     handleNewChatCreation();
+//   }
+//   function handleDeleteChat(id, e) {
+//     e.stopPropagation();
+//     const remaining = chats.filter((c) => c.id !== id);
+//     setChats(remaining);
+//     if (activeChatId === id) {
+//       if (remaining.length > 0) setActiveChatId(remaining[0].id);
+//       else newChat();
+//     }
+//     setOpenMenuId(null);
+//   }
+
+//   function handleRenameChat(id, currentTitle, e) {
+//     e.stopPropagation();
+//     setEditingChatId(id);
+//     setEditTitle(currentTitle);
+//     setOpenMenuId(null);
+//   }
+
+//   function saveRename() {
+//     if (editingChatId && editTitle.trim()) {
+//       setChats((prev) => prev.map((c) => (c.id === editingChatId ? { ...c, title: editTitle.trim() } : c)));
+//     }
+//     setEditingChatId(null);
+//   }
+
+//   function handlePinChat(id, e) {
+//     e.stopPropagation();
+//     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)));
+//     setOpenMenuId(null);
+//   }
+
+//   // Sort chats so pinned items appear at the top
+//   const sortedChats = [...chats].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+//   const chatInputForm = (
+//     <div className="w-full max-w-2xl mx-auto">
+//       <div className="flex flex-col border rounded-xl transition-colors shadow-sm" style={{ borderColor: border, background: surface }}>
+//         <textarea
+//           value={input}
+//           onChange={(e) => setInput(e.target.value)}
+//           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+//           placeholder="Ask about revenue, risk factors, guidance…"
+//           rows={1}
+//           className="flex-1 bg-transparent px-4 pt-4 pb-2 text-sm outline-none resize-none leading-relaxed w-full"
+//           style={{ color: textMain, maxHeight: 120 }}
+//         />
+//         <div className="flex items-center justify-between px-3 pb-2.5">
+//           <div className="flex items-center gap-1">
+//             <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple />
+//             <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80" style={{ color: textMuted, background: bg }} title="Upload File">
+//               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//                 <line x1="12" y1="5" x2="12" y2="19"></line>
+//                 <line x1="5" y1="12" x2="19" y2="12"></line>
+//               </svg>
+//             </button>
+//           </div>
+//           <button
+//             onClick={() => send(input)}
+//             disabled={!input.trim() || loading}
+//             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-25"
+//             style={{ background: btnBg }}
+//           >
+//             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+//               <path d="M1.5 6.5h10M6.5 1.5l5 5-5 5" stroke={btnText} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+//             </svg>
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+
+//   return (
+//     <div className="flex h-full font-sans transition-colors duration-200" style={{ background: bg }}>
+//       <aside className={`flex flex-col border-r shrink-0 transition-all duration-200 ${showLeftSidebar ? 'w-60' : 'w-16'}`} style={{ background: sidebarBg, borderColor: border }}>
+//         <div className="flex items-center justify-between px-3 py-4 border-b" style={{ borderColor: border }}>
+//           {showLeftSidebar ? (
+//             <button onClick={newChat} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left truncate min-w-0">
+//               <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: textMain }}>
+//                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+//                   <circle cx="6" cy="6" r="2.5" fill={sidebarBg} />
+//                   <path d="M6 1v1.5M6 9.5V11M1 6h1.5M9.5 6H11" stroke={sidebarBg} strokeWidth="1.2" strokeLinecap="round" />
+//                 </svg>
+//               </div>
+//               <span className="font-display font-bold text-sm truncate" style={{ color: textMain }}>FinSage</span>
+//             </button>
+//           ) : (
+//             <button onClick={() => setShowLeftSidebar(true)} className="w-full flex justify-center" title="Expand Sidebar">
+//               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: textMain }}>
+//                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+//                   <circle cx="6" cy="6" r="2.5" fill={sidebarBg} />
+//                   <path d="M6 1v1.5M6 9.5V11M1 6h1.5M9.5 6H11" stroke={sidebarBg} strokeWidth="1.2" strokeLinecap="round" />
+//                 </svg>
+//               </div>
+//             </button>
+//           )}
+
+//           {showLeftSidebar && (
+//             <div className="flex items-center gap-1 shrink-0">
+//               <button
+//                 onClick={newChat}
+//                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+//                 style={{ background: surface, color: textMuted, border: `1px solid ${border}` }}
+//                 title="New Chat"
+//               >
+//                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+//                   <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+//                 </svg>
+//               </button>
+//               <button
+//                 onClick={() => setShowLeftSidebar(false)}
+//                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+//                 style={{ background: surface, color: textMuted, border: `1px solid ${border}` }}
+//                 title="Collapse Sidebar"
+//               >
+//                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+//                   <line x1="9" y1="3" x2="9" y2="21"></line>
+//                 </svg>
+//               </button>
+//             </div>
+//           )}
+//         </div>
+
+//         <div className="flex-1 overflow-y-auto py-2">
+//           {showLeftSidebar && <p className="font-mono text-[10px] uppercase tracking-widest px-4 py-2" style={{ color: textMuted }}>Chats</p>}
+//           {sortedChats.map((c) => {
+//             const active = activeChatId === c.id;
+//             if (!showLeftSidebar) {
+//               return (
+//                 <button
+//                   key={c.id}
+//                   onClick={() => setActiveChatId(c.id)}
+//                   className={`w-10 h-10 mx-auto my-1 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${active ? 'shadow-sm' : ''}`}
+//                   style={{ background: active ? surface : "transparent", color: active ? textMain : textMuted }}
+//                   title={c.title}
+//                 >
+//                   {c.title.charAt(0)}
+//                 </button>
+//               );
+//             }
+//             return (
+//               <div key={c.id} className="relative chat-menu-container group mx-1 mb-0.5" style={{ width: "calc(100% - 8px)" }}>
+//                 <button
+//                   onClick={() => setActiveChatId(c.id)}
+//                   className="w-full text-left px-3 py-2.5 transition-colors rounded-lg flex items-center justify-between"
+//                   style={{
+//                     background: active ? surface : "transparent",
+//                     color: active ? textMain : textMuted,
+//                   }}
+//                 >
+//                   <div className="flex-1 min-w-0 pr-4">
+//                     <div className="flex items-center justify-between mb-0.5">
+//                       {editingChatId === c.id ? (
+//                         <input
+//                           autoFocus
+//                           value={editTitle}
+//                           onChange={(e) => setEditTitle(e.target.value)}
+//                           onBlur={saveRename}
+//                           onKeyDown={(e) => {
+//                             if (e.key === "Enter") saveRename();
+//                             if (e.key === "Escape") setEditingChatId(null);
+//                           }}
+//                           onClick={(e) => e.stopPropagation()}
+//                           className="text-xs font-semibold bg-transparent outline-none border-b border-gray-400 w-full mr-2 truncate pb-0.5"
+//                           style={{ color: textMain }}
+//                         />
+//                       ) : (
+//                         <span className="text-xs font-semibold truncate" style={{ color: active ? textMain : textMuted }}>
+//                           {c.title}
+//                         </span>
+//                       )}
+//                       <span className="text-[10px] font-mono shrink-0 ml-2 flex items-center gap-1" style={{ color: textMuted }}>
+//                         {c.pinned && (
+//                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+//                         )}
+//                         {c.time}
+//                       </span>
+//                     </div>
+//                     <p className="text-[11px] truncate" style={{ color: textMuted }}>{c.preview}</p>
+//                   </div>
+//                 </button>
+                
+//                 <button
+//                   onClick={(e) => {
+//                     e.stopPropagation();
+//                     setOpenMenuId(openMenuId === c.id ? null : c.id);
+//                   }}
+//                   className={`absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${openMenuId === c.id ? 'opacity-100' : ''}`}
+//                   style={{ color: textMuted, background: active ? surface : bg }}
+//                 >
+//                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//                     <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
+//                   </svg>
+//                 </button>
+
+//                 {openMenuId === c.id && (
+//                   <div className="absolute left-1/2 top-8 w-40 rounded-lg shadow-lg border py-1.5 z-50 text-xs" style={{ background: surface, borderColor: border }}>
+//                     <button onClick={(e) => handlePinChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+//                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+//                       {c.pinned ? "Unpin" : "Pin"}
+//                     </button>
+//                     <button onClick={(e) => handleRenameChat(c.id, c.title, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: textMain }}>
+//                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+//                       Rename
+//                     </button>
+//                     <button onClick={(e) => handleDeleteChat(c.id, e)} className="w-full text-left px-3 py-2 hover:opacity-70 flex items-center gap-2.5" style={{ color: "#EF4444" }}>
+//                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+//                       Delete
+//                     </button>
+//                   </div>
+//                 )}
+//               </div>
+//             );
+//           })}
+//         </div>
+
+//         <div className="px-3 py-3 border-t relative" style={{ borderColor: border }} ref={profileRef}>
+//           <button
+//             onClick={() => setProfileOpen(!profileOpen)}
+//             className="flex items-center gap-2 w-full rounded-lg p-2 transition-colors hover:opacity-80"
+//           >
+//             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "#888073" }}>
+//               {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+//             </div>
+//             {showLeftSidebar && (
+//               <>
+//                 <div className="flex-1 min-w-0 text-left pl-1">
+//                     <p className="text-sm font-medium truncate leading-tight" style={{ color: textMain }}>{user.name}</p>
+//                     <p className="text-xs truncate mt-0.5" style={{ color: textMuted }}>{user.email}</p>
+//                 </div>
+//                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted }} className="shrink-0">
+//                     <polyline points="6 9 12 15 18 9"></polyline>
+//                 </svg>
+//               </>
+//             )}
+//           </button>
+          
+//           {profileOpen && (
+//             <div className={`absolute bottom-full mb-2 rounded-xl shadow-lg border py-1 z-50 ${showLeftSidebar ? 'left-2 right-2' : 'left-0 w-48'}`} style={{ background: surface, borderColor: border }}>
+//               <button onClick={onToggleTheme} className="w-full text-left px-3 py-2 text-xs" style={{ color: textMuted }}>
+//                 {dark ? "Light mode" : "Dark mode"}
+//               </button>
+//               <button onClick={() => {
+//                 localStorage.removeItem("token");
+//                 onLogout();
+//               }} className="w-full text-left px-3 py-2 text-xs text-red-500">
+//                 Log out
+//               </button>
+//             </div>
+//           )}
+//         </div>
+//       </aside>
+
+//       <div className="flex-1 flex flex-col min-w-0">
+//         <header className="flex items-center justify-between px-6 py-3 shrink-0" style={{ background: bg }}>
+//             <div>
+//                 <p className="font-semibold text-sm" style={{ color: textMain }}>{activeChat.title}</p>
+//                 <p className="text-xs" style={{ color: textMuted }}>{currentDocs.length > 0 ? `${currentDocs.length} docs included` : "All documents"}</p>
+//             </div>
+//             <div className="flex items-center gap-2">
+//                 <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+//                 {!showRightSidebar && (
+//                 <button 
+//                     onClick={() => setShowRightSidebar(true)}
+//                     className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:opacity-80 ml-2"
+//                     style={{ color: textMuted, background: surface, border: `1px solid ${border}` }}
+//                     title="Show Sidebar"
+//                 >
+//                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+//                     <line x1="15" y1="3" x2="15" y2="21"></line>
+//                     </svg>
+//                 </button>
+//                 )}
+//             </div>
+//         </header>
+
+//         <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: bg }}>
+//           {activeChat.messages.length === 0 ? (
+//             <div className="flex flex-col items-center justify-center h-full text-center px-6">
+//               <div className="mb-8">
+//                 <p className="text-4xl mb-3">{greeting.icon}</p>
+//                 <p className="text-5xl font-medium mb-3 tracking-tight" style={{ color: textMain, fontFamily: '"Times New Roman", Times, serif' }}>{greeting.label},</p>
+//                 <p className="text-lg italic" style={{ color: textMuted, fontFamily: '"Times New Roman", Times, serif' }}>Ask the filings. Every answer comes with a source.</p>
+//               </div>
+//               {chatInputForm}
+//             </div>
+//           ) : (
+//             <div className="max-w-2xl mx-auto">
+//               {activeChat.messages.map((m) => <MessageBubble key={m.id} msg={m} dark={dark} />)}
+//               {loading && (
+//                 <div className="flex gap-3 mb-4">
+//                   <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-sm" style={{ background: surface, border: `1px solid ${border}`, color: textMuted }}>✦</div>
+//                   <div className="flex items-center gap-1.5 text-xs" style={{ color: textMuted }}>
+//                     <span>Retrieving sources</span>
+//                     <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: accent }} />
+//                   </div>
+//                 </div>
+//               )}
+//               <div ref={bottomRef} />
+//             </div>
+//           )}
+//         </div>
+
+//         {activeChat.messages.length > 0 && (
+//           <div className="px-6 py-4 shrink-0" style={{ background: bg }}>
+//             {chatInputForm}
+//           </div>
+//         )}
+//       </div>
+
+//       {showRightSidebar && (
+//         <aside className="w-56 flex flex-col border-l shrink-0" style={{ background: sidebarBg, borderColor: border }}>
+//           <div className="px-4 py-4 border-b" style={{ borderColor: border }}>
+//             <div className="flex items-center justify-between">
+//                 <p className="font-semibold text-xs" style={{ color: textMain }}>Document Library</p>
+//                 <div className="flex items-center gap-2">
+//                 <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: surface, color: textMuted }}>{currentDocs.length}</span>
+//                 <button 
+//                     onClick={() => setShowRightSidebar(false)}
+//                     className="flex items-center justify-center transition-colors hover:opacity-80"
+//                     style={{ color: textMuted }}
+//                     title="Hide Sidebar"
+//                 >
+//                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+//                     <line x1="15" y1="3" x2="15" y2="21"></line>
+//                     </svg>
+//                 </button>
+//                 </div>
+//              </div>
+//           </div>
+//           <div className="flex-1 overflow-y-auto py-2">
+//             {currentDocs.length === 0 ? (
+//               <p className="text-xs text-center mt-4" style={{ color: textMuted }}>No documents included.</p>
+//             ) : (
+//               currentDocs.map((doc) => (
+//                 <div key={doc.id} className="w-full text-left px-3 py-2.5 mb-0.5">
+//                   <div className="flex items-center gap-1.5 mb-0.5">
+//                     <span className={`text-[9px] font-mono px-1 py-0.5 rounded border ${typeColors[doc.type] || ""}`}>{doc.type}</span>
+//                   </div>
+//                   <p className="text-[11px] font-medium leading-tight truncate" style={{ color: textMain }}>{doc.name}</p>
+//                   <p className="text-[10px] mt-0.5 font-mono" style={{ color: textMuted }}>{doc.size} · {doc.date}</p>
+//                 </div>
+//               ))
+//             )}
+//           </div>
+//         </aside>
+//       )}
+//     </div>
+//   );
+// }
+
+// export default function App() {
+//   const [page, setPage] = useState("landing");
+//   const [theme, setTheme] = useState("light");
+  
+//   const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
+//   return (
+//     <div className="h-full">
+//       {page === "landing" && <LandingPage onStart={() => setPage("auth")} theme={theme} onToggleTheme={toggle} />}
+//       {page === "auth" && <AuthPage onAuth={() => setPage("app")} onBack={() => setPage("landing")} theme={theme} onToggleTheme={toggle} />}
+//       {page === "app" && <MainApp onLogout={() => setPage("landing")} theme={theme} onToggleTheme={toggle} />}
+//     </div>
+//   );
+// }

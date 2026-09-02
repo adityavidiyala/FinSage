@@ -2,34 +2,28 @@ import logging
 import os
 import sys
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Same sys.path pattern used by scripts/ask.py and scripts/ingest.py,
-# since the editable-install (pip install -e .) approach was abandoned
-# earlier in the project (OneDrive write-lock issue on Windows).
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from finance_rag.pipeline import answer_query, build_retriever  # noqa: E402
-
+from finance_rag.generation.llm import llm
+from finance_rag.guardrails.pii_check import detect_pii
 from api.schemas import HealthResponse, QueryRequest, QueryResponse  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Populated once at startup, reused for every request. Simple module-level
-# state is enough here since this process only ever holds one retriever.
-_state: dict = {"retriever": None}
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Building retriever (loading embedder + reranker)...")
-    _state["retriever"] = build_retriever()
-    logger.info("Retriever ready. Model API is up.")
+    # Nothing document-specific to build up front anymore — the retriever
+    # depends on request-time document_ids now. This lifespan hook is kept
+    # only in case future model warm-up (e.g. pre-loading the embedder or
+    # reranker independent of any retriever) is worth adding later.
+    logger.info("Model API starting up.")
     yield
-    _state.clear()
     logger.info("Model API shutting down.")
 
 
@@ -40,8 +34,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Only web/server (and, during local dev, web/client directly) should ever
-# call this service - it's an internal service, not a public-facing API.
 _allowed_origins = [
     origin.strip()
     for origin in os.environ.get(
@@ -58,19 +50,76 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SYSTEM_GUIDE_PROMPT = """You are FinSage, an AI financial document analysis assistant.
+There are currently NO documents attached to this conversation.
+
+Your job:
+1. Politely respond to greetings, introductions, and questions about FinSage's capabilities or how to use the app.
+2. If the user asks general trivia, creative writing, jokes, or random non-application topics, politely refuse and instruct them to keep questions focused on financial filings.
+3. If the user asks a specific financial or company question (e.g., 'What is Google's revenue?'), inform them that they must upload the relevant financial document (10-K, 10-Q, transcript) using the '+' button before you can answer.
+
+User question: {question}
+Answer:"""
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse(status="ok", retriever_ready=_state["retriever"] is not None)
+    # retriever_ready no longer means "loaded once at startup" - there's no
+    # single global retriever anymore. Reporting True here just confirms the
+    # process is up; per-request build_retriever() failures surface as 404s
+    # below instead.
+    return HealthResponse(status="ok", retriever_ready=True)
 
+@app.post("/query", response_model=QueryResponse)
+def query_endpoint(request: QueryRequest):
+    # 1. No documents attached -> Guide the user or handle pleasantries
+    if not request.document_ids:
+        pii = detect_pii(request.question)
+        if pii:
+            return QueryResponse(
+                answer=f"Your message appears to contain sensitive information ({', '.join(pii)}). Please remove it.",
+                citations=[],
+                from_cache=False,
+            )
+
+        resp = llm.invoke(SYSTEM_GUIDE_PROMPT.format(question=request.question))
+        content = (
+            resp.content
+            if isinstance(resp.content, str)
+            else resp.content[0].get("text", "")
+        )
+        return QueryResponse(
+            answer=content.strip(),
+            citations=[],
+            from_cache=False,
+        )
+
+    # 2. Documents attached -> Run the full RAG pipeline
+    history_dicts = (
+        [turn.model_dump() for turn in request.history]
+        if request.history
+        else None
+    )
+
+    retriever = build_retriever(request.document_ids)
+    result = answer_query(
+        question=request.question,
+        retriever=retriever,
+        conversation_id=str(request.conversation_id),
+        use_cache=request.use_cache,
+        history=history_dicts,
+        use_decomposition=request.use_decomposition,
+    )
+    return QueryResponse(**result)
 
 @app.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest) -> QueryResponse:
-    retriever = _state["retriever"]
-    if retriever is None:
-        # Should never happen once lifespan startup has completed, but
-        # fail loudly rather than silently returning a bad answer.
-        raise HTTPException(status_code=503, detail="Retriever not ready yet.")
+    try:
+        retriever = build_retriever(request.document_ids)
+    except RuntimeError as e:
+        # raised when a document_id hasn't been indexed yet
+        logger.warning("build_retriever() failed: %s", e)
+        raise HTTPException(status_code=404, detail=str(e))
 
     history = (
         [turn.model_dump() for turn in request.history] if request.history else None
@@ -80,6 +129,7 @@ async def query(request: QueryRequest) -> QueryResponse:
         result = answer_query(
             question=request.question,
             retriever=retriever,
+            conversation_id=request.conversation_id,
             use_cache=request.use_cache,
             history=history,
             use_decomposition=request.use_decomposition,
@@ -93,3 +143,4 @@ async def query(request: QueryRequest) -> QueryResponse:
         citations=result.get("citations", []),
         usage=result.get("usage"),
     )
+

@@ -4,18 +4,18 @@ import numpy as np
 from finance_rag.indexing.embeddings import embeddings
 from datetime import datetime, timezone
 from finance_rag.config import SEMANTIC_CACHE_THRESHOLD
-from finance_rag.config import SEMANTIC_CACHE_PATH
 
-def load_cache() -> list[dict]:
-    if not os.path.exists(SEMANTIC_CACHE_PATH):
+
+def load_cache(cache_path: str) -> list[dict]:
+    if not os.path.exists(cache_path):
         return []
-    with open(SEMANTIC_CACHE_PATH, "r", encoding="utf-8") as f:
+    with open(cache_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_cache(entries: list[dict]) -> None:
-    os.makedirs(os.path.dirname(SEMANTIC_CACHE_PATH), exist_ok=True)
-    with open(SEMANTIC_CACHE_PATH, "w", encoding="utf-8") as f:
+def save_cache(entries: list[dict], cache_path: str) -> None:
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(entries, f, indent=2)
 
 
@@ -23,6 +23,7 @@ def _cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     a = np.array(vec_a)
     b = np.array(vec_b)
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
 
 def find_cached_answer(question: str, cache_entries: list[dict]) -> dict | None:
     if not cache_entries:
@@ -52,4 +53,3 @@ def store_answer(question: str, answer: str, citations: list[dict], cache_entrie
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     cache_entries.append(entry)
-    save_cache(cache_entries)

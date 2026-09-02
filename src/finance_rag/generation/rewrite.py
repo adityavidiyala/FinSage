@@ -7,6 +7,9 @@ into a fully standalone question that includes all necessary context (dates, ent
 from the history. If the new question is already standalone, return it unchanged. \
 Do not answer the question — only rewrite it.
 
+"Recognize common company synonyms and tickers (such as Google <-> Alphabet Inc., "
+"Meta <-> Facebook) when reformulating queries."
+
 Conversation history:
 {history_block}
 
@@ -20,8 +23,15 @@ def rewrite_standalone_question(history: list[dict], question: str) -> str:
         return question
 
     recent = history[-MAX_HISTORY_TURNS:]
+    def _extract_qa(turn):
+        if hasattr(turn, "question") and hasattr(turn, "answer"):
+            return turn.question, turn.answer
+        if isinstance(turn, dict):
+            return turn.get("question", ""), turn.get("answer", "")
+        return getattr(turn, "question", ""), getattr(turn, "answer", "")
+
     history_block = "\n".join(
-        f"Q: {turn['question']}\nA: {turn['answer']}" for turn in recent
+        f"Q: {q}\nA: {a}" for q, a in (_extract_qa(turn) for turn in recent)
     )
 
     prompt = REWRITE_PROMPT.format(history_block=history_block, question=question)

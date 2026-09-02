@@ -8,8 +8,6 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling_core.types.doc import DoclingDocument
 
-from finance_rag.config import PDF_PATH, CACHE_PATH
-
 
 class _CachedResult:
     """Wraps a loaded DoclingDocument so it matches converter.convert()'s return shape."""
@@ -17,7 +15,7 @@ class _CachedResult:
         self.document = document
 
 
-def parse_document(pdf_path: str = PDF_PATH, cache_path: str = CACHE_PATH):
+def parse_document(pdf_path: str ,cache_path: str):
     """
     Parse a PDF with docling, or load a previously cached parse if one exists.
     Returns an object with a `.document` attribute (DoclingDocument).

@@ -16,6 +16,13 @@ class HistoryTurn(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, description="The user's question.")
+    document_ids: list[str] = Field(
+        default_factory=list,
+        description="Documents attached to this conversation. Can be empty if no documents are uploaded yet.",
+    )
+    conversation_id: str = Field(
+        ..., description="Used to scope the semantic cache per-conversation.",
+    )
     history: list[HistoryTurn] | None = Field(
         default=None,
         description="Last few turns of the conversation, oldest first. "
@@ -29,6 +36,7 @@ class QueryRequest(BaseModel):
         default=False,
         description="Whether to break the question into sub-queries for retrieval.",
     )
+
 
 
 class Citation(BaseModel):

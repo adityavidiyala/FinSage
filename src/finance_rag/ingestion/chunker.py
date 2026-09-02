@@ -11,7 +11,7 @@ from pathlib import Path
 
 from transformers import AutoTokenizer
 
-from finance_rag.config import EMBED_MODEL, PDF_PATH, MAX_TOKENS, OVERLAP_TOKENS
+from finance_rag.config import EMBED_MODEL, MAX_TOKENS, OVERLAP_TOKENS
 
 _tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL)
 
@@ -77,7 +77,7 @@ def _split_markdown_table_to_row_chunks(table_markdown: str, heading: str = "") 
     return row_chunks
 
 
-def build_semantic_chunks(document, pdf_path: str = PDF_PATH) -> list[dict]:
+def build_semantic_chunks(document, pdf_path: str) -> list[dict]:
     """
     Walk a docling `document` and produce a list of chunk dicts:
     {"content": str, "metadata": {...}}

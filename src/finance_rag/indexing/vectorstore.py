@@ -11,35 +11,30 @@ from finance_rag.indexing.embeddings import embeddings
 
 
 def get_vectorstore(langchain_docs: list = None) -> QdrantVectorStore:
-    """
-    Returns a QdrantVectorStore connected to COLLECTION_NAME.
-    If the collection already exists, connects without re-embedding.
-    If it doesn't exist, creates it and embeds `langchain_docs` (required in that case).
-    """
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-
     collection_exists = client.collection_exists(COLLECTION_NAME)
 
-    if collection_exists:
-        print(f"Collection '{COLLECTION_NAME}' already exists — connecting without re-embedding.")
-        return QdrantVectorStore.from_existing_collection(
+    if not collection_exists:
+        if not langchain_docs:
+            raise ValueError(f"Collection '{COLLECTION_NAME}' doesn't exist and no documents were provided to create it.")
+        print(f"Collection '{COLLECTION_NAME}' not found — creating and embedding first document.")
+        return QdrantVectorStore.from_documents(
+            documents=langchain_docs,
             embedding=embeddings,
             url=QDRANT_URL,
             api_key=QDRANT_API_KEY,
             collection_name=COLLECTION_NAME,
         )
 
-    if not langchain_docs:
-        raise ValueError(
-            f"Collection '{COLLECTION_NAME}' doesn't exist yet and no documents were "
-            "provided to create it. Run ingestion first (scripts/ingest.py)."
-        )
-
-    print(f"Collection '{COLLECTION_NAME}' not found — creating and embedding documents now.")
-    return QdrantVectorStore.from_documents(
-        documents=langchain_docs,
+    store = QdrantVectorStore.from_existing_collection(
         embedding=embeddings,
         url=QDRANT_URL,
         api_key=QDRANT_API_KEY,
         collection_name=COLLECTION_NAME,
     )
+
+    if langchain_docs:
+        print(f"Collection exists — embedding and adding {len(langchain_docs)} new document(s).")
+        store.add_documents(langchain_docs)
+
+    return store

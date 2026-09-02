@@ -16,7 +16,7 @@ from langchain_core.documents import Document
 from finance_rag.generation.llm import llm
 
 ANSWER_PROMPT = PromptTemplate.from_template("""
-You are answering a question about a company's financial document.
+You are answering a question about financial documents.
 Use ONLY the information in the numbered sources below. Do not use outside knowledge.
 If the sources do not contain the answer, say so explicitly rather than guessing.
 
@@ -24,6 +24,16 @@ Cite the source(s) supporting each claim using bracketed numbers, e.g. [1] or [2
 placed right after the claim. Only cite source numbers that are listed below.
 Do not add a citation if the sentence is not directly supported by a specific source.
 
+When identifying a company or reporting entity, mention both the official SEC
+registrant name and common parent/subsidiary brand names if applicable
+(e.g., 'Alphabet Inc. (Google)').
+
+Multi-Document & Fiscal Calendar Rules:
+- Companies often report on different fiscal year schedules. Do NOT assume two documents share the same reporting dates or quarters.
+- Extract metrics for each company based on whatever reporting periods are present in its own filing (e.g. Q2 2026 for one, Q3 2025 for another).
+- Never dismiss a company's data simply because its filing date differs from another attached document.
+- Clearly state the company, filing date, and period corresponding to each metric.
+- For comparative or synthesis questions, contrast the reported figures and trends from each document without extrapolating beyond the provided data.
 Sources:
 {context}
 

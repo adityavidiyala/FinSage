@@ -20,6 +20,15 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+# --- DOCUMENT SCHEMAS ---
+class DocumentResponse(BaseModel):
+    id: UUID
+    filename: str
+    content_hash: str
+    status: str  # "parsing" | "ready" | "failed"
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 # --- MESSAGE SCHEMAS ---
 class MessageBase(BaseModel):
@@ -42,14 +51,33 @@ class MessageResponse(MessageBase):
 # --- CONVERSATION SCHEMAS ---
 class ConversationBase(BaseModel):
     title: Optional[str] = None
+    pinned: Optional[bool] = False
 
 class ConversationCreate(ConversationBase):
     pass
 
+class ConversationUpdate(BaseModel):
+    title: Optional[str] = None
+    pinned: Optional[bool] = None
+    
 class ConversationResponse(ConversationBase):
     id: UUID
     created_at: datetime
     # Optionally include the list of messages when fetching a conversation
     messages: List[MessageResponse] = []
+    documents: List[DocumentResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentResponse(BaseModel):
+    id: UUID
+    filename: str
+    content_hash: str
+    status: str  # "parsing" | "ready" | "failed"
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class DocumentAttachRequest(BaseModel):
+    document_id: UUID
