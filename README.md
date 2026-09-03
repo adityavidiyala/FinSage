@@ -2,7 +2,7 @@
 
 **A hybrid-retrieval RAG system for financial filings — hallucination-resistant Q&A over 10-Ks, 10-Qs, and earnings transcripts, with source citations on every claim.**
 
-FinSage lets you upload SEC filings and ask questions in plain English — "What was Walmart's operating margin last quarter?", "Compare Alphabet's and Meta's capex trends" — and get back an answer grounded strictly in the document, with inline citations pointing to the exact page and section it came from.
+FinSage lets you upload SEC filings and ask questions in plain English — "What was Walmart's operating margin last quarter?", "Compare Google's and Meta's capex trends" — and get back an answer grounded strictly in the document, with inline citations pointing to the exact page and section it came from.
 
 <p align="center">
   <a href="VIDEO_LINK_HERE">▶️ Watch the demo</a>
@@ -183,6 +183,31 @@ Then open the printed local URL, sign up, upload a filing, and start asking ques
 - **Local-first**: designed and tested for localhost use; not currently deployed. Uploaded PDFs and cached parses are stored on local disk, so a cloud deployment would need object storage (S3/Supabase Storage) added before local disk paths would work reliably on ephemeral hosting.
 - No automated test suite yet — correctness has been validated through the RAGAS eval set and manual testing.
 - Single-LLM generation path (Gemini) with no automatic failover if the provider is unavailable.
+
+---
+
+## Future scope
+
+### 1. Agentic tool use for financial analysis
+
+Right now the pipeline is a fixed sequence: decompose → retrieve → rerank → generate. The planned evolution is to let the model *choose* which tools to invoke per question, similar to how a human analyst would work:
+
+- **Cross-document / cross-period calculation tools** — actual arithmetic (YoY growth, margin deltas, ratio calculations) computed in code rather than left to the LLM, which the generation prompt currently explicitly forbids ("do not perform arithmetic") specifically because LLM-computed math on financial figures isn't reliable.
+- **Live market data tools** — current stock price, market cap, or analyst estimates via a market-data API, so questions aren't limited to what's inside the uploaded filing.
+- **Web/news search tool** — for questions that need context beyond the filing itself (recent events, competitor moves, macro conditions).
+- **Structured data extraction tool** — pull a specific line item straight out of a table into a typed value (not prose) for downstream calculation or charting, rather than relying on the LLM to read it off a hydrated table each time.
+- **Chart/visualization generation** — given the extracted data, produce a trend chart or comparison table as part of the answer.
+- **A planning/routing layer** — decide per-question whether retrieval alone suffices, or whether a calculation, external lookup, or chart is actually needed, instead of always running the same fixed pipeline.
+
+This turns FinSage from "ask questions about a document" into "delegate an analysis task," which is closer to what a financial analyst actually needs.
+
+### 2. Deployment with CI/CD
+
+FinSage has been built and validated locally throughout. Making it deployable means:
+
+- **CI/CD pipeline** — on every push/PR, automatically lint and build both FastAPI services and the frontend, run the RAGAS eval set against a small fixed corpus as a regression check on retrieval/generation quality, and on merge to main, automatically deploy the model API, web server, and frontend as separate services (matching the current architecture split).
+- **Containerization** — Dockerize both FastAPI services and the frontend build for consistent environments between local dev and production.
+- **Object storage for uploads** — move uploaded PDFs and cached parses off local disk to S3/Supabase Storage, since local disk paths won't persist reliably on ephemeral hosting (Render, Fly.io, etc.) — a gap already flagged as a known limitation.
 
 ---
 
