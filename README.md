@@ -105,8 +105,7 @@ Retrieval and generation quality are measured with **[RAGAS](https://github.com/
 ### Observability
 Every pipeline stage (retrieval, rewrite, decomposition, generation, cache hits) is traced with **[LangSmith](https://smith.langchain.com/)** for latency and token-cost breakdowns, plus a lightweight local CSV logger as a no-API-access-needed fallback.
 
-<!-- Paste LangSmith trace screenshots or a shared trace link here -->
-`TODO: LangSmith screenshots / trace link`
+![LangSmith trace](docs/assets/langsmith-trace.png)
 
 ---
 
