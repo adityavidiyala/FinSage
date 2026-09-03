@@ -3,11 +3,17 @@ RAGAS evaluation: retrieval quality (context precision, context recall) and
 generation quality (faithfulness, answer relevancy) against the 40-question
 eval set in eval_dataset.json.
 
-Reuses a single retriever build across all 40 questions (see pipeline.build_retriever) —
-NOT rebuilt per question, which is what the earlier retriever-reload fix in pipeline.py
-was specifically for.
+Runs against a single already-ingested document (pass its document_id — see
+the `documents` table, or the id returned from POST /documents). This script
+does not ingest a document itself; upload the filing through the app once,
+then point this at that document_id.
+
+Usage:
+    python evals/run_ragas.py --document-id <uuid>
+    python evals/run_ragas.py --document-id <uuid> --limit 5   # quick smoke test
 """
 
+import argparse
 import sys
 import os
 import json
@@ -45,18 +51,10 @@ from finance_rag.indexing.embeddings import embeddings
 EVAL_DATASET_PATH = os.path.join(os.path.dirname(__file__), "eval_dataset.json")
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 
-# Questions the filing genuinely doesn't answer — used for the answerable/
-# unanswerable split, since blended answer_relevancy is misleading otherwise
-# (a correct "I don't know" scores 0.0 on relevancy, dragging the average down).
-NEGATIVE_CASE_QUESTIONS = [
-    "What was Walmart's total marketing and advertising expenditure for the three months ended April 30, 2026?",
-    "What long-term debt matured during the three months ended April 30, 2026, and what were the repayment amounts?",
-    "How much did Walmart pay in dividends (cash flow statement) during the three months ended April 30, 2026 vs 2025?",
-    "What tariff/trade-related risks does Walmart flag as affecting its business in the MD&A 'Recent Developments' section?",
-    "According to the MD&A, what share of Walmart's U.S. imports come from China, Vietnam, Mexico, India, and Canada, and what fraction of total U.S. sales is imported?",
-    "What was Walmart's total headcount or number of employees as of April 30, 2026?",
-    "What credit rating agencies have rated Walmart's debt, and what were the specific ratings as of April 30, 2026?",
-]
+# Fixed conversation_id for eval runs — keeps the semantic cache scoped to
+# this eval "conversation" rather than colliding with real users' caches.
+# use_cache is disabled below anyway so each run measures the pipeline fresh.
+EVAL_CONVERSATION_ID = "ragas-eval"
 
 
 def load_eval_dataset() -> list[dict]:
@@ -77,7 +75,9 @@ def run_retrieval_and_generation(eval_dataset: list[dict], retriever) -> list[di
 
         item["contexts"] = [doc.page_content for doc in deduped]
 
-        result = answer_query(item["question"], retriever)
+        result = answer_query(
+            item["question"], retriever, conversation_id=EVAL_CONVERSATION_ID, use_cache=False
+        )
         item["answer"] = result["answer"]  # generate_answer now returns a dict — see Step 20
 
     return eval_dataset
@@ -117,7 +117,7 @@ def run_ragas_eval(eval_dataset: list[dict]):
     return results.to_pandas()
 
 
-def summarize(results_df, eval_dataset: list[dict]):
+def summarize(results_df):
     os.makedirs(RESULTS_DIR, exist_ok=True)
     out_path = os.path.join(RESULTS_DIR, "ragas_results.csv")
     results_df.to_csv(out_path, index=False)
@@ -129,24 +129,26 @@ def summarize(results_df, eval_dataset: list[dict]):
     print(f"  faithfulness:      {results_df['faithfulness'].mean():.4f}")
     print(f"  answer_relevancy:  {results_df['answer_relevancy'].mean():.4f}")
 
-    answerable_df = results_df[~results_df["user_input"].isin(NEGATIVE_CASE_QUESTIONS)]
-    unanswerable_df = results_df[results_df["user_input"].isin(NEGATIVE_CASE_QUESTIONS)]
-
-    print(f"\nANSWERABLE (n={len(answerable_df)}):")
-    print(f"  faithfulness:      {answerable_df['faithfulness'].mean():.4f}")
-    print(f"  answer_relevancy:  {answerable_df['answer_relevancy'].mean():.4f}")
-
-    print(f"\nUNANSWERABLE/MISS (n={len(unanswerable_df)}):")
-    print(f"  faithfulness:      {unanswerable_df['faithfulness'].mean():.4f}")
-    print(f"  answer_relevancy:  {unanswerable_df['answer_relevancy'].mean():.4f}")
-
 
 if __name__ == "__main__":
-    eval_dataset = load_eval_dataset()[:3]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--document-id", required=True,
+        help="document_id of the already-ingested filing to evaluate against.",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None,
+        help="Only run the first N eval questions (useful for a quick smoke test).",
+    )
+    args = parser.parse_args()
+
+    eval_dataset = load_eval_dataset()
+    if args.limit:
+        eval_dataset = eval_dataset[: args.limit]
     print(f"Loaded {len(eval_dataset)} eval questions.\n")
 
     print("Building retriever once (BM25 + Qdrant + reranker)...")
-    retriever = build_retriever()
+    retriever = build_retriever([args.document_id])
 
     print("\nRunning retrieval + generation for all questions...")
     eval_dataset = run_retrieval_and_generation(eval_dataset, retriever)
@@ -154,4 +156,4 @@ if __name__ == "__main__":
     print("\nRunning RAGAS evaluation...")
     results_df = run_ragas_eval(eval_dataset)
 
-    summarize(results_df, eval_dataset)
+    summarize(results_df)

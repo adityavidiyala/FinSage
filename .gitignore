@@ -222,7 +222,7 @@ __marimo__/
 *.env.local
 
 # Data & cache (large / regenerable — don't commit)
-data/raw/*.pdf
+data/uploads/*.pdf
 cache/
 finance_rag_cache/
 

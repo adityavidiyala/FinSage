@@ -91,14 +91,16 @@ A per-conversation semantic cache checks incoming questions against previously a
 
 Retrieval and generation quality are measured with **[RAGAS](https://github.com/explodinggashboard/ragas)** against a hand-built evaluation set of financial questions (including intentionally unanswerable ones, scored separately, since a correct "I don't know" otherwise drags down relevancy metrics unfairly).
 
-| Metric | Score |
-|---|---|
-| Context Precision | `TODO` |
-| Context Recall | `TODO` |
-| Faithfulness | `TODO` |
-| Answer Relevancy | `TODO` |
+> **Note:** the numbers below are from the pre-refactor pipeline (local embeddings/reranker, whole-table chunks, no query decomposition). The eval harness is being re-run against the current architecture (Jina embeddings, Cohere rerank, row-level table chunking, query decomposition) — updated numbers coming soon.
 
-*(Run `evals/run_ragas.py` to reproduce.)*
+| Metric | Score (pre-refactor baseline) |
+|---|---|
+| Context Precision | 0.8348 |
+| Context Recall | 0.9250 |
+| Faithfulness | 0.9875 |
+| Answer Relevancy | 0.7619 |
+
+*(Reproduce or update with: `python evals/run_ragas.py --document-id <uuid>`, where `<uuid>` is an already-ingested document's id.)*
 
 ### Observability
 Every pipeline stage (retrieval, rewrite, decomposition, generation, cache hits) is traced with **[LangSmith](https://smith.langchain.com/)** for latency and token-cost breakdowns, plus a lightweight local CSV logger as a no-API-access-needed fallback.
