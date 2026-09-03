@@ -86,8 +86,11 @@ def answer_query(
     if GUARDRAILS_ENABLED:
         pii_found = detect_pii(question)
         if pii_found:
-            ...
-
+            return {
+                "answer": f"Your message appears to contain sensitive information "
+                          f"({', '.join(pii_found)}). Please remove it and try again.",
+                "citations": [], "from_cache": False, "blocked_reason": "pii_detected",
+            }
         with track_stage(question, "guardrail_input") as extra:
             classification = classify_input(question)
             extra.update(classification)

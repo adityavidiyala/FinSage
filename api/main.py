@@ -71,7 +71,7 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok", retriever_ready=True)
 
 @app.post("/query", response_model=QueryResponse)
-def query_endpoint(request: QueryRequest):
+async def query_endpoint(request: QueryRequest) -> QueryResponse:
     # 1. No documents attached -> Guide the user or handle pleasantries
     if not request.document_ids:
         pii = detect_pii(request.question)
@@ -79,10 +79,14 @@ def query_endpoint(request: QueryRequest):
             return QueryResponse(
                 answer=f"Your message appears to contain sensitive information ({', '.join(pii)}). Please remove it.",
                 citations=[],
-                from_cache=False,
             )
 
-        resp = llm.invoke(SYSTEM_GUIDE_PROMPT.format(question=request.question))
+        try:
+            resp = llm.invoke(SYSTEM_GUIDE_PROMPT.format(question=request.question))
+        except Exception:
+            logger.exception("Guide-prompt LLM call failed for question: %r", request.question)
+            raise HTTPException(status_code=500, detail="Failed to generate a response.")
+
         content = (
             resp.content
             if isinstance(resp.content, str)
@@ -91,29 +95,9 @@ def query_endpoint(request: QueryRequest):
         return QueryResponse(
             answer=content.strip(),
             citations=[],
-            from_cache=False,
         )
 
     # 2. Documents attached -> Run the full RAG pipeline
-    history_dicts = (
-        [turn.model_dump() for turn in request.history]
-        if request.history
-        else None
-    )
-
-    retriever = build_retriever(request.document_ids)
-    result = answer_query(
-        question=request.question,
-        retriever=retriever,
-        conversation_id=str(request.conversation_id),
-        use_cache=request.use_cache,
-        history=history_dicts,
-        use_decomposition=request.use_decomposition,
-    )
-    return QueryResponse(**result)
-
-@app.post("/query", response_model=QueryResponse)
-async def query(request: QueryRequest) -> QueryResponse:
     try:
         retriever = build_retriever(request.document_ids)
     except RuntimeError as e:
@@ -121,17 +105,19 @@ async def query(request: QueryRequest) -> QueryResponse:
         logger.warning("build_retriever() failed: %s", e)
         raise HTTPException(status_code=404, detail=str(e))
 
-    history = (
-        [turn.model_dump() for turn in request.history] if request.history else None
+    history_dicts = (
+        [turn.model_dump() for turn in request.history]
+        if request.history
+        else None
     )
 
     try:
         result = answer_query(
             question=request.question,
             retriever=retriever,
-            conversation_id=request.conversation_id,
+            conversation_id=str(request.conversation_id),
             use_cache=request.use_cache,
-            history=history,
+            history=history_dicts,
             use_decomposition=request.use_decomposition,
         )
     except Exception:
@@ -143,4 +129,3 @@ async def query(request: QueryRequest) -> QueryResponse:
         citations=result.get("citations", []),
         usage=result.get("usage"),
     )
-
