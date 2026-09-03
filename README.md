@@ -5,7 +5,7 @@
 FinSage lets you upload SEC filings and ask questions in plain English — "What was Walmart's operating margin last quarter?", "Compare Google's and Meta's capex trends" — and get back an answer grounded strictly in the document, with inline citations pointing to the exact page and section it came from.
 
 <p align="center">
-  <a href="VIDEO_LINK_HERE">▶️ Watch the demo</a>
+  <a href="https://github.com/user-attachments/assets/4a1bb373-0e71-49a4-a3ab-8565840488cc">▶️ Watch the demo</a>
 </p>
 
 ---
